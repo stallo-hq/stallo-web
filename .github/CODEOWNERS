@@ -1,0 +1,6 @@
+# Each path's owners are auto-requested as reviewers. See the org handbook for roles.
+*                         @stallo-hq/frontend
+/src/app/                 @stallo-hq/frontend @stallo-hq/leads
+/src/lib/                 @stallo-hq/frontend @stallo-hq/leads
+/.github/                 @stallo-hq/leads
+/package.json             @stallo-hq/frontend @stallo-hq/leads
