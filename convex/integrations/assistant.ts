@@ -4,7 +4,8 @@
  * by our code from the seller's product list.
  *
  * Env (Convex):
- *   ANTHROPIC_API_KEY
+ *   ANTHROPIC_API_KEY          Claude (preferred when set)
+ *   GROQ_API_KEY, GROQ_MODEL   Groq fallback (default openai/gpt-oss-120b)
  *   LLM_MODEL                  default claude-haiku-5-5 (try claude-sonnet-5-5 if accuracy is poor)
  *   LLM_CONFIDENCE_THRESHOLD   default 0.75
  */
@@ -117,9 +118,21 @@ export function sanitize(raw: Extraction, productIds: ReadonlySet<string>): Extr
 
 export class AssistantError extends Error {}
 
+/** True when any supported AI provider has a key. */
+export function assistantConfigured(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY)
+}
+
+/**
+ * Uses Claude when ANTHROPIC_API_KEY is set, otherwise Groq (GROQ_API_KEY,
+ * model from GROQ_MODEL). Both return the same checked structure.
+ */
 export async function extract(input: AssistantInput): Promise<Extraction> {
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) throw new AssistantError('ANTHROPIC_API_KEY is not set')
+  if (!apiKey) {
+    if (process.env.GROQ_API_KEY) return extractWithGroq(input, process.env.GROQ_API_KEY)
+    throw new AssistantError('ANTHROPIC_API_KEY (or GROQ_API_KEY) is not set')
+  }
   const client = new Anthropic({ apiKey, maxRetries: 2, timeout: 60_000 })
 
   const response = await client.messages.parse({
@@ -133,4 +146,42 @@ export async function extract(input: AssistantInput): Promise<Extraction> {
   if (response.stop_reason === 'refusal') throw new AssistantError('The assistant declined this message')
   if (!response.parsed_output) throw new AssistantError(`No structured answer (stop reason ${response.stop_reason})`)
   return sanitize(response.parsed_output, new Set(input.products.map((p) => p.id)))
+}
+
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+
+async function extractWithGroq(input: AssistantInput, apiKey: string): Promise<Extraction> {
+  const schema = JSON.stringify(z.toJSONSchema(Extraction))
+  let response: Response
+  try {
+    response = await fetch(GROQ_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: `${SYSTEM_PROMPT}\n\nAnswer with one JSON object only, matching this JSON Schema:\n${schema}` },
+          { role: 'user', content: buildUserMessage(input) },
+        ],
+      }),
+    })
+  } catch {
+    throw new AssistantError('Could not reach Groq')
+  }
+  const body = (await response.json().catch(() => ({}))) as {
+    choices?: { message?: { content?: string } }[]
+    error?: { message?: string }
+  }
+  if (!response.ok) throw new AssistantError(`Groq: ${body.error?.message ?? `HTTP ${response.status}`}`)
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body.choices?.[0]?.message?.content ?? '')
+  } catch {
+    throw new AssistantError('Groq did not return JSON')
+  }
+  const result = Extraction.safeParse(parsed)
+  if (!result.success) throw new AssistantError('Groq answer did not match the expected structure')
+  return sanitize(result.data, new Set(input.products.map((p) => p.id)))
 }

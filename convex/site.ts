@@ -36,7 +36,7 @@ export const integrations = query({
       embeddedSignup: appId && configId ? { appId, configId, graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v27.0' } : null,
       manualWhatsApp: process.env.WHATSAPP_MANUAL_CONNECT === 'true',
       payments: Boolean(process.env.PAYSTACK_SECRET_KEY),
-      assistant: Boolean(process.env.ANTHROPIC_API_KEY),
+      assistant: Boolean(process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY),
     }
   },
 })
