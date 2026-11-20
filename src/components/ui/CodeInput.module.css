@@ -1,0 +1,44 @@
+.container {
+  display: flex;
+  gap: 8px;
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  max-width: 56px;
+  height: 60px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 500;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.active {
+  border-color: var(--ink);
+  box-shadow: var(--focus);
+}
+
+.invalid {
+  border-color: var(--red);
+}
+
+.caret {
+  width: 2px;
+  height: 26px;
+  background: var(--text);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

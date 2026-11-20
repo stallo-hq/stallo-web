@@ -1,0 +1,226 @@
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0;
+}
+
+.stat {
+  display: grid;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.statLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.statValue {
+  font-size: 30px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statHint {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+@media (max-width: 1100px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .statValue {
+    font-size: 24px;
+  }
+
+  .stat {
+    padding: 14px 16px;
+  }
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.cardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--text);
+}
+
+/* ---------- Setup checklist ---------- */
+
+.progress {
+  height: 4px;
+  margin: 16px 20px 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.steps {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+}
+
+.step + .step {
+  border-top: 1px solid var(--line);
+}
+
+.stepMark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.stepDone .stepMark {
+  border-color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.stepText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.stepText strong {
+  font-weight: 500;
+}
+
+.stepText span {
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.stepDone .stepText strong {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+@media (max-width: 560px) {
+  .step {
+    flex-wrap: wrap;
+  }
+
+  .step a {
+    margin-left: 42px;
+  }
+}
+
+/* ---------- Attention ---------- */
+
+.allClear {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+}
+
+.allClear strong {
+  font-weight: 600;
+}
+
+.allClear p {
+  margin-top: 2px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.allClearIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.attention {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attention li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+}
+
+.attention li + li {
+  border-top: 1px solid var(--line);
+}
+
+.attention svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--amber);
+}
+
+.attention div {
+  display: grid;
+}
+
+.attention strong {
+  font-weight: 500;
+}
+
+.attention span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}

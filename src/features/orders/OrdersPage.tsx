@@ -1,87 +1,57 @@
-import {
-  IonItem,
-  IonLabel,
-  IonList,
-  IonSegment,
-  IonSegmentButton,
-  IonSpinner,
-  IonText,
-} from '@ionic/react'
-import { receiptOutline } from 'ionicons/icons'
+import { MessageCircle, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
-import { EmptyState } from '../../components/EmptyState'
-import { LargeTitlePage } from '../../components/LargeTitlePage'
+import { PageHeader } from '../../components/PageHeader'
+import { ButtonLink } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { Segmented } from '../../components/ui/Segmented'
+import { PageSpinner } from '../../components/ui/Spinner'
 import { useSeller } from '../../hooks/useSeller'
-import { formatShortDateTime } from '../../lib/dates'
-import { haptic } from '../../lib/haptics'
-import { formatCedis } from '../../lib/money'
-import { formatGhanaPhone } from '../../lib/phone'
-import { FILTERS, ORDER_STATUS, type OrderFilter } from './orderStatus'
+import { OrderTable } from './OrderTable'
+import { FILTERS, type OrderFilter } from './orderStatus'
 import { useOrders } from './useOrders'
 
 export function OrdersPage() {
   const [filter, setFilter] = useState<OrderFilter>('active')
   const orders = useOrders(filter)
   const seller = useSeller()
-  const current = FILTERS.find((f) => f.value === filter)!
+  const config = FILTERS.find((f) => f.value === filter)!
+  const waitingForWhatsApp = seller && !seller.whatsappConnected
 
   return (
-    <LargeTitlePage title="Orders" subtitle="Orders from WhatsApp, newest first.">
-      <div className="toolbar-gap">
-        <IonSegment
+    <>
+      <PageHeader title="Orders" description="Every order from WhatsApp, from first message to delivery." />
+      <div style={{ marginBottom: 16 }}>
+        <Segmented
+          label="Show orders"
           value={filter}
-          onIonChange={(e) => {
-            setFilter(e.detail.value as OrderFilter)
-            haptic('light')
-          }}
-        >
-          {FILTERS.map((f) => (
-            <IonSegmentButton key={f.value} value={f.value}>
-              <IonLabel>{f.label}</IonLabel>
-            </IonSegmentButton>
-          ))}
-        </IonSegment>
+          onChange={setFilter}
+          options={FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+        />
       </div>
-
-      {orders === undefined ? (
-        <div className="centered ion-padding">
-          <IonSpinner aria-label="Loading" />
-        </div>
-      ) : orders.length === 0 ? (
-        seller && !seller.whatsappConnected ? (
+      <Card flush>
+        {orders === undefined ? (
+          <PageSpinner />
+        ) : orders.length === 0 ? (
           <EmptyState
-            icon={receiptOutline}
-            title={current.emptyTitle}
-            message="Connect your WhatsApp number so customers can start ordering."
-            actionLabel="Connect WhatsApp"
-            actionHref="/settings/whatsapp"
-          />
+            icon={waitingForWhatsApp ? MessageCircle : ShoppingBag}
+            title={config.emptyTitle}
+            action={
+              waitingForWhatsApp ? (
+                <ButtonLink to="/app/settings/whatsapp" variant="dark">
+                  Connect WhatsApp
+                </ButtonLink>
+              ) : undefined
+            }
+          >
+            {waitingForWhatsApp
+              ? 'Orders arrive once your WhatsApp number is connected. It only takes a few minutes.'
+              : config.emptyMessage}
+          </EmptyState>
         ) : (
-          <EmptyState icon={receiptOutline} title={current.emptyTitle} message={current.emptyMessage} />
-        )
-      ) : (
-        <IonList inset>
-          {orders.map((o) => {
-            const status = ORDER_STATUS[o.status]
-            return (
-              <IonItem key={o._id}>
-                <IonLabel>
-                  <h2 className="truncate">{o.customerName ?? formatGhanaPhone(o.customerPhone)}</h2>
-                  <p className="truncate">{o.itemsSummary}</p>
-                  <IonText color={status.color}>
-                    <p>
-                      {status.label} · {formatShortDateTime(o.createdAt)}
-                    </p>
-                  </IonText>
-                </IonLabel>
-                <IonText slot="end" className="amount text-headline">
-                  {formatCedis(o.totalPesewas)}
-                </IonText>
-              </IonItem>
-            )
-          })}
-        </IonList>
-      )}
-    </LargeTitlePage>
+          <OrderTable orders={orders} />
+        )}
+      </Card>
+    </>
   )
 }

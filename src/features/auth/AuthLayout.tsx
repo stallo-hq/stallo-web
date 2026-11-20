@@ -1,20 +1,42 @@
-import { IonContent, IonPage, IonText } from '@ionic/react'
 import type { ReactNode } from 'react'
+import { Logo } from '../../components/Logo'
+import { ChatMock } from '../landing/visuals'
+import styles from './AuthLayout.module.css'
 
-/** Centred column for signed-out screens, narrow on every screen size. */
-export function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
+const YEAR = new Date().getFullYear()
+
+/** Signed-out screens: the form on the left, the product on the right (hidden on phones). */
+export function AuthLayout({
+  title,
+  subtitle,
+  children,
+  footer,
+}: {
+  title: string
+  subtitle?: ReactNode
+  children: ReactNode
+  footer?: ReactNode
+}) {
   return (
-    <IonPage>
-      <IonContent color="light">
-        <main className="auth">
-          <p className="auth-brand text-headline">Stallo</p>
-          <h1 className="text-large-title">{title}</h1>
-          <IonText color="medium">
-            <p className="auth-subtitle text-body">{subtitle}</p>
-          </IonText>
-          {children}
+    <div className={styles.layout}>
+      <div className={styles.formSide}>
+        <div className={styles.top}>
+          <Logo tone="light" />
+        </div>
+        <main className={styles.form}>
+          <h1 className={styles.title}>{title}</h1>
+          {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+          <div className={styles.body}>{children}</div>
+          {footer && <div className={styles.footer}>{footer}</div>}
         </main>
-      </IonContent>
-    </IonPage>
+        <p className={styles.legal}>© {YEAR} Stallo</p>
+      </div>
+      <aside className={styles.brandSide} aria-hidden="true">
+        <div className={styles.brandInner}>
+          <p className={styles.brandTitle}>Customers order in chat. You get paid.</p>
+          <ChatMock />
+        </div>
+      </aside>
+    </div>
   )
 }

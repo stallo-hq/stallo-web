@@ -1,0 +1,88 @@
+.table {
+  font-size: 14px;
+}
+
+.head,
+.row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) minmax(0, 1.6fr) auto minmax(90px, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+}
+
+.head {
+  padding-block: 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+.customer {
+  display: grid;
+  min-width: 0;
+}
+
+.customer strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.customer span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.items {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+
+.right {
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .head {
+    display: none;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'customer total'
+      'items items'
+      'status status';
+    gap: 6px 12px;
+    padding: 14px 16px;
+  }
+
+  .customer {
+    grid-area: customer;
+  }
+
+  .items {
+    grid-area: items;
+  }
+
+  .row > :nth-child(3) {
+    grid-area: status;
+  }
+
+  .row > :nth-child(4) {
+    grid-area: total;
+  }
+}

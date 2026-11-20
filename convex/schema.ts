@@ -16,7 +16,22 @@ export default defineSchema({
   // App users. Credentials and sessions live in the Convex Auth components.
   users: defineTable({
     createdAt: v.number(),
+    // Set once the user proves they hold the phone number (SMS code). Nothing works before.
+    phoneVerifiedAt: v.optional(v.number()),
   }),
+
+  // SMS one-time codes (sent and checked by SasuSync). A verified code yields a
+  // one-time token (stored hashed) that proves phone ownership for a short time.
+  phoneVerifications: defineTable({
+    phone: v.string(),
+    status: v.union(v.literal('sending'), v.literal('sent'), v.literal('failed'), v.literal('verified'), v.literal('used')),
+    otpId: v.optional(v.string()),
+    tokenHash: v.optional(v.string()),
+    verifiedAt: v.optional(v.number()),
+    error: v.optional(v.string()),
+  })
+    .index('by_phone', ['phone'])
+    .index('by_token_hash', ['tokenHash']),
 
   sellers: defineTable({
     ownerId: v.id('users'),

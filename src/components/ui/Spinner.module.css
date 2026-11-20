@@ -1,0 +1,16 @@
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.page {
+  display: grid;
+  place-items: center;
+  min-height: 40vh;
+  color: var(--text-3);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

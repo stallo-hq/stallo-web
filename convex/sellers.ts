@@ -56,6 +56,11 @@ export const create = mutation({
     const existing = await findSellerForUser(ctx, userId)
     if (existing !== null) return existing._id
 
+    const user = await ctx.db.get(userId)
+    if (user?.phoneVerifiedAt === undefined) {
+      throw new ConvexError({ code: 'PHONE_NOT_VERIFIED', message: 'Confirm your phone number first.' })
+    }
+
     // The phone number they signed up with is their username.
     const phone = await ctx.runQuery(components.authUsername.public.getUsername, { userId })
     if (phone === null) throw new ConvexError('Account has no phone number')

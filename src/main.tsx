@@ -1,31 +1,16 @@
+import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { ConvexReactClient } from 'convex/react'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { setupIonicReact } from '@ionic/react'
-import { ConvexReactClient } from 'convex/react'
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { RouterProvider } from 'react-router'
+import { Toaster } from 'sonner'
 import { api } from '../convex/_generated/api'
-import { App } from './app/App'
+import { router } from './app/router'
 
-/* Ionic core CSS (required) */
-import '@ionic/react/css/core.css'
-import '@ionic/react/css/normalize.css'
-import '@ionic/react/css/structure.css'
-import '@ionic/react/css/typography.css'
-/* Ionic utilities */
-import '@ionic/react/css/padding.css'
-import '@ionic/react/css/text-alignment.css'
-import '@ionic/react/css/flex-utils.css'
-import '@ionic/react/css/display.css'
-/* Dark mode follows the device setting */
-import '@ionic/react/css/palettes/dark.system.css'
-/* Inter for non-Apple devices (Apple devices use San Francisco) */
+import '@fontsource-variable/geist'
 import '@fontsource-variable/inter'
-/* Stallo theme */
-import './theme/typography.css'
-import './theme/app.css'
-
-// iOS look and behaviour on every platform, including Android.
-setupIonicReact({ mode: 'ios' })
+import './styles/tokens.css'
+import './styles/base.css'
 
 const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined
 if (!convexUrl) {
@@ -43,7 +28,8 @@ createRoot(document.getElementById('root')!).render(
         isAuthenticated: api.auth.isAuthenticated,
       }}
     >
-      <App />
+      <RouterProvider router={router} />
+      <Toaster position="bottom-right" richColors closeButton />
     </ConvexAuthProvider>
   </StrictMode>,
 )

@@ -1,141 +1,74 @@
-import {
-  IonButton,
-  IonInput,
-  IonInputPasswordToggle,
-  IonItem,
-  IonLabel,
-  IonList,
-  IonSegment,
-  IonSegmentButton,
-  IonSpinner,
-} from '@ionic/react'
-import { DEFAULT_MIN_PASSWORD_LENGTH } from '@convex-dev/auth/methods/username-password'
-import {
-  useSignInWithUsernamePassword,
-  useSignUpWithUsernamePassword,
-} from '@convex-dev/auth/methods/username-password/react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useSignInWithUsernamePassword } from '@convex-dev/auth/methods/username-password/react'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { api } from '../../../convex/_generated/api'
-import { SectionFooter } from '../../components/SectionFooter'
-import { inputValue } from '../../lib/forms'
-import { haptic } from '../../lib/haptics'
+import { authMessage } from '../../../convex/lib/authMessages'
+import { Button } from '../../components/ui/Button'
+import { Field, PasswordField } from '../../components/ui/Field'
 import { toE164Ghana } from '../../lib/phone'
+import styles from './auth.module.css'
 import { AuthLayout } from './AuthLayout'
 
-type Mode = 'signIn' | 'signUp'
-
-function messageFor(error: string, mode: Mode): string {
-  switch (error) {
-    case 'INVALID_CREDENTIALS':
-    case 'USER_NOT_FOUND':
-      return 'That phone number and password don’t match.'
-    case 'RATE_LIMITED':
-      return 'Too many attempts. Wait a minute and try again.'
-    case 'USERNAME_TAKEN':
-      return 'An account with this phone number already exists. Sign in instead.'
-    case 'PASSWORD_TOO_SHORT':
-      return `Use at least ${DEFAULT_MIN_PASSWORD_LENGTH} characters.`
-    case 'PASSWORD_TOO_COMMON':
-      return 'That password is too common. Choose another.'
-    case 'PASSWORD_HAS_SURROUNDING_WHITESPACE':
-      return 'Remove spaces at the start or end of the password.'
-    default:
-      return mode === 'signIn'
-        ? 'Couldn’t sign in. Check your connection and try again.'
-        : 'Couldn’t create the account. Check your connection and try again.'
-  }
-}
-
 export function SignInPage() {
-  const [mode, setMode] = useState<Mode>('signIn')
+  const navigate = useNavigate()
+  const { signIn, pending } = useSignInWithUsernamePassword(api.auth)
+  const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const phoneRef = useRef<HTMLIonInputElement>(null)
-  const passwordRef = useRef<HTMLIonInputElement>(null)
-
-  const signIn = useSignInWithUsernamePassword(api.auth)
-  const signUp = useSignUpWithUsernamePassword(api.auth)
-  const pending = signIn.pending || signUp.pending
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    const username = toE164Ghana(inputValue(phoneRef))
-    if (username === null) {
-      haptic('error')
-      setError('Enter a Ghana mobile number, for example 024 123 4567.')
-      return
-    }
-    const run = mode === 'signIn' ? signIn.signIn : signUp.signUp
-    const result = await run({ username, password: inputValue(passwordRef) })
-    if (result.status === 'complete') {
-      haptic('success')
-    } else {
-      haptic('error')
-      setError(messageFor(result.userError.error, mode))
-    }
+    const username = toE164Ghana(phone)
+    if (username === null) return setError('Enter a Ghana mobile number, for example 024 123 4567.')
+    if (password === '') return setError('Enter your password.')
+    const result = await signIn({ username, password })
+    if (result.status === 'complete') navigate('/app', { replace: true })
+    else setError(authMessage(result.userError.error))
   }
 
   return (
     <AuthLayout
-      title={mode === 'signIn' ? 'Welcome back' : 'Start selling on WhatsApp'}
-      subtitle="Orders, payments and deliveries from WhatsApp, in one place."
+      title="Welcome back"
+      subtitle="Sign in to see today’s orders."
+      footer={
+        <>
+          New to Stallo? <Link to="/signup">Create an account</Link>
+        </>
+      }
     >
-      <IonSegment
-        value={mode}
-        onIonChange={(e) => {
-          setMode(e.detail.value as Mode)
-          setError(null)
-          haptic('light')
-        }}
-      >
-        <IonSegmentButton value="signIn">
-          <IonLabel>Sign in</IonLabel>
-        </IonSegmentButton>
-        <IonSegmentButton value="signUp">
-          <IonLabel>Create account</IonLabel>
-        </IonSegmentButton>
-      </IonSegment>
-
-      <form onSubmit={submit} noValidate>
-        <IonList inset className="auth-list">
-          <IonItem>
-            <IonInput
-              ref={phoneRef}
-              label="Phone"
-              labelPlacement="fixed"
-              type="tel"
-              inputmode="tel"
-              autocomplete="tel"
-              placeholder="024 123 4567"
-            />
-          </IonItem>
-          <IonItem>
-            <IonInput
-              ref={passwordRef}
-              label="Password"
-              labelPlacement="fixed"
-              type="password"
-              autocomplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-              placeholder={mode === 'signUp' ? `${DEFAULT_MIN_PASSWORD_LENGTH}+ characters` : 'Required'}
-            >
-              <IonInputPasswordToggle slot="end" />
-            </IonInput>
-          </IonItem>
-        </IonList>
-
-        {error ? (
-          <SectionFooter color="danger">{error}</SectionFooter>
-        ) : (
-          <SectionFooter>
-            {mode === 'signIn'
-              ? 'Use the phone number you signed up with.'
-              : 'Use the phone number for your business. Free to start; you only pay a small fee on paid orders.'}
-          </SectionFooter>
-        )}
-
-        <IonButton type="submit" expand="block" disabled={pending}>
-          {pending ? <IonSpinner name="crescent" /> : mode === 'signIn' ? 'Sign in' : 'Create account'}
-        </IonButton>
+      <form onSubmit={submit} noValidate className={styles.form}>
+        <Field
+          label="Phone number"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel-national"
+          placeholder="024 123 4567"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          autoFocus
+        />
+        <PasswordField
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <div className={styles.row}>
+          {error ? (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          ) : (
+            <span />
+          )}
+          <Link to="/forgot-password" className={styles.forgot}>
+            Forgot password?
+          </Link>
+        </div>
+        <Button type="submit" variant="dark" size="lg" block loading={pending}>
+          Sign in
+        </Button>
       </form>
     </AuthLayout>
   )

@@ -20,11 +20,12 @@ type T = ReturnType<typeof setup>
 const TTL = { accessTokenTtlSeconds: 3600, refreshInactivityTimeoutSeconds: 86400, sessionMaxLifetimeSeconds: 86400 }
 
 /**
- * A signed-in seller. Does what password sign-up does once the password is
- * checked (the password hashing itself doesn't run under vitest): create the
- * user, store the phone number as the username, open a real session.
+ * A signed-in account that hasn't confirmed its phone yet. Does what password
+ * sign-up does once the password is checked (the password hashing itself
+ * doesn't run under vitest): create the user, store the phone number as the
+ * username, open a real session.
  */
-async function seller(t: T, phone: string, businessName: string) {
+async function account(t: T, phone: string) {
   const userId = await t.run((ctx) => ctx.db.insert('users', { createdAt: Date.now() }))
   await t.mutation(components.authUsername.public.setUsername, { userId, username: phone })
   const tokens = await t.mutation(components.auth.public._internal_dangerous_signIn, {
@@ -33,12 +34,63 @@ async function seller(t: T, phone: string, businessName: string) {
     userId,
     ...TTL,
   })
-  const as = t.withIdentity(sessionIdentity(tokens))
+  return t.withIdentity(sessionIdentity(tokens))
+}
+
+/** A token proving we hold the phone, from the real SMS-code actions (SMS_TEST_MODE: code 123456). */
+async function phoneToken(t: T, phone: string) {
+  await t.action(api.phoneVerification.sendCode, { phone })
+  return (await t.action(api.phoneVerification.verifyCode, { phone, code: '123456' })).token
+}
+
+/** A fully set-up seller: account, confirmed phone, business. */
+async function seller(t: T, phone: string, businessName: string) {
+  const as = await account(t, phone)
+  await as.mutation(api.account.confirmPhone, { token: await phoneToken(t, phone) })
   await as.mutation(api.sellers.create, { businessName })
   return as
 }
 
 const jollof = { name: 'Jollof with chicken', pricePesewas: 6500, stock: 20, active: true }
+
+describe('phone verification', () => {
+  it('blocks setting up a business until the phone is confirmed', async () => {
+    const t = setup()
+    const ama = await account(t, '+233241234567')
+    await expect(ama.mutation(api.sellers.create, { businessName: 'Ama’s Kitchen' })).rejects.toThrow(/Confirm your phone/)
+    expect(await ama.query(api.account.me, {})).toEqual({ phone: '+233241234567', phoneVerified: false, hasSeller: false })
+  })
+
+  it('rejects a wrong code', async () => {
+    const t = setup()
+    await t.action(api.phoneVerification.sendCode, { phone: '024 123 4567' })
+    await expect(t.action(api.phoneVerification.verifyCode, { phone: '0241234567', code: '000000' })).rejects.toThrow(/isn’t right/)
+  })
+
+  it('rejects numbers that are not Ghana mobiles', async () => {
+    const t = setup()
+    await expect(t.action(api.phoneVerification.sendCode, { phone: '12345' })).rejects.toThrow(/Ghana mobile/)
+  })
+
+  it('uses a token once, and only for the number it was issued for', async () => {
+    const t = setup()
+    const ama = await account(t, '+233241234567')
+    const kofisToken = await phoneToken(t, '+233551234567')
+    await expect(ama.mutation(api.account.confirmPhone, { token: kofisToken })).rejects.toThrow(/expired/)
+
+    const token = await phoneToken(t, '+233241234567')
+    await ama.mutation(api.account.confirmPhone, { token })
+    const kofi = await account(t, '+233551234567')
+    await expect(kofi.mutation(api.account.confirmPhone, { token })).rejects.toThrow(/expired/)
+    expect((await ama.query(api.account.me, {}))?.phoneVerified).toBe(true)
+  })
+
+  it('limits codes per number', async () => {
+    const t = setup()
+    for (let i = 0; i < 5; i++) await t.action(api.phoneVerification.sendCode, { phone: '+233241234567' })
+    await expect(t.action(api.phoneVerification.sendCode, { phone: '+233241234567' })).rejects.toThrow(/Too many/)
+  })
+})
 
 describe('sellers', () => {
   it('creates the business once, with the sign-up phone number', async () => {

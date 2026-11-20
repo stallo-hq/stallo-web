@@ -1,0 +1,94 @@
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sentTo {
+  color: var(--text-2);
+}
+
+.sentTo strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.inlineLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.inlineLink:disabled {
+  opacity: 0.5;
+}
+
+.forgot {
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.error {
+  color: var(--red);
+  font-size: 14px;
+}
+
+.resend {
+  font-size: 14px;
+  color: var(--text-2);
+  text-align: center;
+}
+
+.testNote {
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 13.5px;
+}
+
+.notice {
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 14.5px;
+  color: var(--text-2);
+}
+
+.notice a {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: -8px;
+}
+
+.progress span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.progress span[data-done] {
+  background: var(--ink);
+}
+
+.terms {
+  font-size: 13px;
+  color: var(--text-3);
+}

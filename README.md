@@ -1,10 +1,10 @@
 # stallo-web
 
-Seller dashboard for **Stallo**, plus the Convex backend (`convex/`) that holds all of Stallo's data.
+Stallo's marketing site, seller dashboard, and the Convex backend (`convex/`) that holds all of Stallo's data.
 
-React 19 · TypeScript · Vite · Ionic React (iOS mode) · React Router 6 · Convex · Convex Auth
+React 19 · TypeScript · Vite · React Router 7 · Radix UI primitives · Lucide icons · Convex · Convex Auth · SasuSync (SMS codes)
 
-> Team roles and workflow: `stallo-hq/.github` → `HANDBOOK.md`. MVP rules: `CLAUDE.md` in the workspace root.
+> MVP rules: `CLAUDE.md` in the workspace root. Team workflow: `stallo-hq/.github` → `HANDBOOK.md`.
 
 ## Getting started
 
@@ -14,7 +14,18 @@ npx convex dev      # first run: log in, create the project; writes .env.local. 
 npm run dev         # in a second terminal → http://localhost:5173
 ```
 
-`npx convex dev` watches `convex/`, pushes changes to your dev deployment and regenerates `convex/_generated/`.
+### Convex environment variables
+
+Set these on the Convex deployment (`npx convex env set NAME value`, or in the Convex dashboard). Never put them in the frontend.
+
+| Name | Needed for | Notes |
+|---|---|---|
+| `SASUSYNC_API_KEY` | Sign-up and password reset by SMS code | From the SasuSync portal (https://sms.sasusync.com) |
+| `SASUSYNC_SENDER_ID` | Same | An approved sender ID, e.g. `Stallo` |
+| `SMS_TEST_MODE` | Local development only | `true` = no SMS is sent and the code is always `123456`. **Never set in production.** |
+| `SMS_HOURLY_LIMIT` | Optional | Max codes sent per hour across the whole service (default 300) |
+| `PLATFORM_FEE_PERCENT` | Pricing | Stallo's fee per paid order, e.g. `2.5`. Shown on the website automatically |
+| `PLATFORM_FEE_FLAT_PESEWAS` | Pricing | Optional flat fee per paid order, in pesewas (e.g. `50` = GH₵ 0.50) |
 
 ## Scripts
 
@@ -24,37 +35,39 @@ npm run dev         # in a second terminal → http://localhost:5173
 | `npm run convex` | Same as `npx convex dev` |
 | `npm run build` | Type-check and production build |
 | `npm run lint` | Lint (oxlint) |
-| `npm test` | Unit tests (`src/lib`) and Convex function tests (`convex/*.test.ts`, via convex-test) |
+| `npm test` | Unit tests (`src/lib`), Convex function tests (`convex/*.test.ts`, convex-test) and the SasuSync client against a mocked API |
 
 ## Layout
 
 ```
-convex/              Convex backend (owned by this repo)
-  schema.ts          all tables (money in pesewas, phones in E.164)
-  auth.ts            phone number + password sign-in (Convex Auth)
-  model/             shared rules: auth guard (requireSeller, assertOwned), validation, time
-  lib/               shared validators (order/payment status values)
-  sellers.ts, products.ts, orders.ts, dashboard.ts   thin public functions
-  sellers.test.ts    behaviour + "a seller never sees another seller's data"
+convex/                 Convex backend (owned by this repo)
+  schema.ts             all tables (money in pesewas, phones in E.164)
+  auth.ts               phone number + password sign-in (Convex Auth)
+  account.ts            who am I, confirm phone, reset password
+  phoneVerification.ts  send / check SMS codes (rate-limited)
+  integrations/         third-party APIs (sasusync.ts)
+  model/                shared rules: auth guard, validation, fees, verification tokens
+  lib/                  code shared with the web app: validators, phone parsing, auth messages
+  sellers.ts, products.ts, orders.ts, dashboard.ts, site.ts   thin public functions
 src/
-  app/               App (auth gate), Shell (sidebar on desktop, tab bar on phones), navigation
-  components/        shared layout: LargeTitlePage, SectionHeader/Footer, EmptyState
-  features/<area>/   pages, components and data hooks for auth, today, orders, products, settings
-  hooks/             app-wide hooks (useSeller)
-  lib/               formatting and helpers: money, phone, dates, forms, haptics (one source each)
-  theme/             iOS text styles (typography.css) and app layout (app.css)
+  app/                  router, account gate, dashboard shell, navigation
+  components/ui/        Button, Field, Card, Badge, Dialog, Switch, Segmented, CodeInput, EmptyState …
+  components/           Logo, PageHeader
+  features/<area>/      pages, components and data hooks: landing, auth, overview, orders, products, settings
+  hooks/                app-wide hooks (useSeller)
+  lib/                  formatting and helpers: money, phone, dates, errors (one source each)
+  styles/               design tokens and base styles
 ```
 
-Rules of thumb: pages never call Convex directly (they use the feature's hook, e.g. `useProducts`); every seller-facing Convex function starts with `requireSeller`/`currentSeller`; status labels and colours live in one file per area (`orderStatus.ts`, `connectionStatus.ts`).
+Rules of thumb:
+- Pages never call Convex directly; they use their feature's hook (e.g. `useProducts`).
+- Every seller-facing Convex function starts with `requireSeller` / `currentSeller`.
+- Colours, radii and fonts only through `src/styles/tokens.css`. Status labels and colours live in one file per area (`orderStatus.ts`, `connectionStatus.ts`).
 
-## Design rules
+## Sign-up flow
 
-The UI follows Apple's Human Interface Guidelines using Ionic's own components in iOS mode, laid out as a responsive web app: a sidebar at 992px and wider, a tab bar on phones, content in a centred column. Use Ionic components only (no Tailwind, shadcn or other kits), Ionicons for icons, Ionic colour variables (no hex values), and the text classes in `src/theme/typography.css`. Every screen explains itself and offers a next step. See `CLAUDE.md` §6.
+1. Phone number → SasuSync sends a 6-digit code (`phoneVerification.sendCode`).
+2. Code → checked by SasuSync (`verifyCode`), which returns a one-time token (stored hashed, valid 30 minutes).
+3. Business name + password → account created, `account.confirmPhone(token)` marks the number verified, `sellers.create` sets up the business.
 
-## Sign-in
-
-Sellers sign in with their Ghana mobile number and a password (at least 10 characters). The number is stored as `+233XXXXXXXXX` and is the account's username.
-
-## Known issue
-
-`npm audit` reports moderate advisories in React Router 6 (open redirect in `<Link>`/`navigate` with untrusted input; SSR hydration). Ionic React Router 9 requires React Router 6, and this app never navigates to user-supplied URLs and does no SSR. Revisit when Ionic supports React Router 7.
+An account whose number isn't confirmed can't do anything; the dashboard asks it to confirm first. "Forgot password" uses the same code + token, then `account.resetPassword` sets the new password and signs out every other session.

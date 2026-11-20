@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-bottom: 28px;
+}
+
+.text {
+  min-width: 0;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--text-2);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--text);
+}
+
+.title {
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.description {
+  margin-top: 6px;
+  color: var(--text-2);
+  font-size: 15px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

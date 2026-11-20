@@ -1,18 +1,28 @@
 import type { Doc } from '../../../convex/_generated/dataModel'
+import type { Tone } from '../../components/ui/Badge'
 
-type OrderStatus = Doc<'orders'>['status']
+export type OrderStatus = Doc<'orders'>['status']
+export type PaymentStatus = Doc<'orders'>['paymentStatus']
 
-/** The one place order statuses get their label and colour (Ionic semantic colours). */
-export const ORDER_STATUS: Record<OrderStatus, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'medium' },
-  awaiting_confirmation: { label: 'Confirming', color: 'warning' },
-  awaiting_payment: { label: 'Awaiting payment', color: 'warning' },
-  paid: { label: 'Paid · to deliver', color: 'success' },
-  dispatched: { label: 'Out for delivery', color: 'primary' },
-  delivered: { label: 'Delivered', color: 'success' },
-  delivery_failed: { label: 'Delivery failed', color: 'danger' },
-  returned: { label: 'Returned', color: 'medium' },
-  cancelled: { label: 'Cancelled', color: 'danger' },
+/** The one place order statuses get their label and colour. */
+export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
+  draft: { label: 'Draft', tone: 'gray' },
+  awaiting_confirmation: { label: 'Confirming', tone: 'amber' },
+  awaiting_payment: { label: 'Awaiting payment', tone: 'amber' },
+  paid: { label: 'Paid · to deliver', tone: 'green' },
+  dispatched: { label: 'Out for delivery', tone: 'blue' },
+  delivered: { label: 'Delivered', tone: 'gray' },
+  delivery_failed: { label: 'Delivery failed', tone: 'red' },
+  returned: { label: 'Returned', tone: 'gray' },
+  cancelled: { label: 'Cancelled', tone: 'red' },
+}
+
+export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
+  none: { label: 'Not requested', tone: 'gray' },
+  pending: { label: 'Pending', tone: 'amber' },
+  paid: { label: 'Paid', tone: 'green' },
+  failed: { label: 'Failed', tone: 'red' },
+  refunded: { label: 'Refunded', tone: 'gray' },
 }
 
 export type OrderFilter = 'active' | 'delivered' | 'all'

@@ -1,64 +1,50 @@
-import { IonButton, IonInput, IonItem, IonList, IonSpinner } from '@ionic/react'
 import { useMutation } from 'convex/react'
-import { ConvexError } from 'convex/values'
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { api } from '../../../convex/_generated/api'
-import { SectionFooter } from '../../components/SectionFooter'
-import { inputValue } from '../../lib/forms'
-import { haptic } from '../../lib/haptics'
+import { Button } from '../../components/ui/Button'
+import { Field } from '../../components/ui/Field'
+import { errorMessage } from '../../lib/errors'
+import styles from './auth.module.css'
 import { AuthLayout } from './AuthLayout'
+import { SignOutLink } from './SignOutLink'
 
-/** Shown once, right after creating an account. */
+/** Signed in and verified, but no business yet. */
 export function SetupBusinessPage() {
   const createSeller = useMutation(api.sellers.create)
-  const nameRef = useRef<HTMLIonInputElement>(null)
-  const [pending, setPending] = useState(false)
+  const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    const name = inputValue(nameRef)
-    if (name.trim().length < 2) {
-      haptic('error')
-      setError('Enter your business name.')
-      return
-    }
-    setPending(true)
+    if (name.trim().length < 2) return setError('Enter your business name.')
+    setBusy(true)
     try {
       await createSeller({ businessName: name })
-      haptic('success')
     } catch (err) {
-      haptic('error')
-      setError(err instanceof ConvexError ? String(err.data) : 'Couldn’t save. Try again.')
+      setError(errorMessage(err, 'Couldn’t save. Try again.'))
     } finally {
-      setPending(false)
+      setBusy(false)
     }
   }
 
   return (
-    <AuthLayout title="Name your business" subtitle="This is the name customers see in WhatsApp and on payment links.">
-      <form onSubmit={submit} noValidate>
-        <IonList inset className="auth-list">
-          <IonItem>
-            <IonInput
-              ref={nameRef}
-              label="Name"
-              labelPlacement="fixed"
-              placeholder="Ama’s Kitchen"
-              autocomplete="organization"
-              maxlength={80}
-            />
-          </IonItem>
-        </IonList>
-        {error ? (
-          <SectionFooter color="danger">{error}</SectionFooter>
-        ) : (
-          <SectionFooter>You can change it later in Settings.</SectionFooter>
-        )}
-        <IonButton type="submit" expand="block" disabled={pending}>
-          {pending ? <IonSpinner name="crescent" /> : 'Continue'}
-        </IonButton>
+    <AuthLayout title="Name your business" subtitle="Customers see this in WhatsApp and on payment pages." footer={<SignOutLink />}>
+      <form onSubmit={submit} noValidate className={styles.form}>
+        <Field
+          label="Business name"
+          placeholder="Ama’s Kitchen"
+          autoComplete="organization"
+          maxLength={80}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={error}
+          autoFocus
+        />
+        <Button type="submit" variant="primary" size="lg" block loading={busy}>
+          Continue
+        </Button>
       </form>
     </AuthLayout>
   )

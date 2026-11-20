@@ -23,3 +23,11 @@ export function parseCedis(input: string): number | null {
 export function pesewasToInput(pesewas: number): string {
   return (pesewas / 100).toFixed(2)
 }
+
+/** { percent: 2.5, flatPesewas: 50 } → "2.5% + GH₵ 0.50". Null when there is no fee. */
+export function formatFee({ percent, flatPesewas }: { percent: number; flatPesewas: number }): string | null {
+  const parts: string[] = []
+  if (percent > 0) parts.push(`${Number(percent.toFixed(2))}%`)
+  if (flatPesewas > 0) parts.push(formatCedis(flatPesewas))
+  return parts.length > 0 ? parts.join(' + ') : null
+}

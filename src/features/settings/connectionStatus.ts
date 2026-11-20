@@ -1,9 +1,13 @@
-/** Label and colour for a connection (WhatsApp, payouts). One source for Settings and the detail pages. */
+import type { Tone } from '../../components/ui/Badge'
+
+export type ConnectionState = 'connected' | 'requested' | 'none'
+
+/** Label and colour for a connection (WhatsApp, payouts). One source for every screen that shows it. */
 export function connectionStatus(
   connected: boolean,
   requestedAt: number | undefined,
-): { label: string; color: string; state: 'connected' | 'requested' | 'none' } {
-  if (connected) return { label: 'Connected', color: 'success', state: 'connected' }
-  if (requestedAt !== undefined) return { label: 'Requested', color: 'warning', state: 'requested' }
-  return { label: 'Not set up', color: 'medium', state: 'none' }
+): { label: string; tone: Tone; state: ConnectionState } {
+  if (connected) return { label: 'Connected', tone: 'green', state: 'connected' }
+  if (requestedAt !== undefined) return { label: 'Setup requested', tone: 'amber', state: 'requested' }
+  return { label: 'Not connected', tone: 'gray', state: 'none' }
 }

@@ -1,0 +1,102 @@
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.status > div {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+}
+
+.status p {
+  color: var(--text-2);
+}
+
+.status strong {
+  color: var(--text);
+}
+
+.statusIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.details {
+  display: grid;
+  gap: 20px;
+}
+
+.benefits {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benefits li {
+  display: flex;
+  gap: 12px;
+}
+
+.benefits svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--green);
+}
+
+.benefits div {
+  display: grid;
+}
+
+.benefits strong {
+  font-weight: 500;
+}
+
+.benefits span {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.checklist {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.checklist li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  counter-increment: step;
+}
+
+.checklist li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--gray-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+}

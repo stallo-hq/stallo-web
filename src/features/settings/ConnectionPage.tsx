@@ -1,113 +1,104 @@
-import { IonButton, IonIcon, IonItem, IonLabel, IonList, IonSpinner, IonText } from '@ionic/react'
-import { checkmarkCircle, timeOutline } from 'ionicons/icons'
+import { Check, type LucideIcon } from 'lucide-react'
 import { useState } from 'react'
-import { LargeTitlePage } from '../../components/LargeTitlePage'
-import { SectionFooter } from '../../components/SectionFooter'
-import { SectionHeader } from '../../components/SectionHeader'
+import { toast } from 'sonner'
+import { PageHeader } from '../../components/PageHeader'
+import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { PageSpinner } from '../../components/ui/Spinner'
+import { useSeller } from '../../hooks/useSeller'
 import { formatLongDate } from '../../lib/dates'
-import { haptic } from '../../lib/haptics'
+import { errorMessage } from '../../lib/errors'
 import { formatGhanaPhone } from '../../lib/phone'
+import styles from './ConnectionPage.module.css'
 import { connectionStatus } from './connectionStatus'
+import { useSettingsActions } from './useSettings'
 
 export type ConnectionCopy = {
+  kind: 'whatsapp' | 'payouts'
+  icon: LucideIcon
   title: string
-  icon: string
-  intro: string
-  benefits: { icon: string; title: string; detail: string }[]
-  needs: string[]
-  requestLabel: string
+  description: string
+  benefits: { title: string; text: string }[]
+  checklist: string[]
+  connectedText: string
 }
 
-/**
- * Detail page for a connection (WhatsApp or payouts). During the pilot the
- * Stallo team connects these with each seller, so the action is a request.
- */
-export function ConnectionPage({
-  copy,
-  connected,
-  requestedAt,
-  phone,
-  onRequest,
-}: {
-  copy: ConnectionCopy
-  connected: boolean
-  requestedAt: number | undefined
-  phone: string
-  onRequest: () => Promise<unknown>
-}) {
+/** Shared page for WhatsApp and payouts: what it does, what you need, and the next step. */
+export function ConnectionPage({ copy }: { copy: ConnectionCopy }) {
+  const seller = useSeller()
+  const { requestSetup } = useSettingsActions()
+  const [busy, setBusy] = useState(false)
+
+  if (seller === undefined) return <PageSpinner />
+  if (seller === null) return null
+
+  const connected = copy.kind === 'whatsapp' ? seller.whatsappConnected : seller.payoutsConnected
+  const requestedAt = copy.kind === 'whatsapp' ? seller.whatsappSetupRequestedAt : seller.payoutsSetupRequestedAt
   const status = connectionStatus(connected, requestedAt)
-  const [sending, setSending] = useState(false)
+  const Icon = copy.icon
 
   async function request() {
-    setSending(true)
+    setBusy(true)
     try {
-      await onRequest()
-      haptic('success')
+      await requestSetup({ kind: copy.kind })
+      toast.success('Request sent. We’ll call you to finish setting it up.')
+    } catch (err) {
+      toast.error(errorMessage(err))
     } finally {
-      setSending(false)
+      setBusy(false)
     }
   }
 
   return (
-    <LargeTitlePage title={copy.title} backHref="/settings">
-      <div className="hero-status">
-        <IonIcon
-          icon={status.state === 'connected' ? checkmarkCircle : status.state === 'requested' ? timeOutline : copy.icon}
-          color={status.state === 'connected' ? 'success' : status.state === 'requested' ? 'warning' : 'primary'}
-          aria-hidden="true"
-        />
-        <p className="text-headline">
-          {status.state === 'connected' ? 'Connected' : status.state === 'requested' ? 'Setup requested' : copy.intro}
-        </p>
-        {status.state === 'requested' && requestedAt !== undefined && (
-          <IonText color="medium">
-            <p className="text-subheadline">
+    <>
+      <PageHeader title={copy.title} description={copy.description} back={{ to: '/app/settings', label: 'Settings' }} />
+      <div className={styles.layout}>
+        <Card className={styles.status}>
+          <span className={styles.statusIcon}>
+            <Icon size={24} />
+          </span>
+          <Badge tone={status.tone}>{status.label}</Badge>
+          {status.state === 'connected' && <p>{copy.connectedText}</p>}
+          {status.state === 'requested' && (
+            <p>
               Requested on {formatLongDate(requestedAt)}. The Stallo team will call you on{' '}
-              {formatGhanaPhone(phone)} to finish setting it up.
+              <strong>{formatGhanaPhone(seller.phone)}</strong> to finish setting it up.
             </p>
-          </IonText>
-        )}
-      </div>
-
-      <SectionHeader>What you get</SectionHeader>
-      <IonList inset>
-        {copy.benefits.map((b) => (
-          <IonItem key={b.title}>
-            <IonIcon slot="start" icon={b.icon} color="primary" aria-hidden="true" />
-            <IonLabel className="ion-text-wrap">
-              <h2>{b.title}</h2>
-              <p>{b.detail}</p>
-            </IonLabel>
-          </IonItem>
-        ))}
-      </IonList>
-
-      {status.state !== 'connected' && (
-        <>
-          <SectionHeader>Have these ready</SectionHeader>
-          <IonList inset>
-            {copy.needs.map((n, i) => (
-              <IonItem key={n}>
-                <IonText slot="start" color="medium" className="step-number">
-                  {i + 1}
-                </IonText>
-                <IonLabel className="ion-text-wrap">{n}</IonLabel>
-              </IonItem>
-            ))}
-          </IonList>
-          <SectionFooter>
-            During the pilot, the Stallo team sets this up with you over a short call.
-          </SectionFooter>
-
-          {status.state === 'none' && (
-            <div className="ion-padding-horizontal">
-              <IonButton expand="block" onClick={request} disabled={sending}>
-                {sending ? <IonSpinner name="crescent" /> : copy.requestLabel}
-              </IonButton>
-            </div>
           )}
-        </>
-      )}
-    </LargeTitlePage>
+          {status.state === 'none' && (
+            <>
+              <p>During the pilot, the Stallo team sets this up with you on a short call. Request it and we’ll be in touch.</p>
+              <Button variant="primary" size="lg" block loading={busy} onClick={() => void request()}>
+                Request setup
+              </Button>
+            </>
+          )}
+        </Card>
+
+        <div className={styles.details}>
+          <Card title="What you get">
+            <ul className={styles.benefits}>
+              {copy.benefits.map((b) => (
+                <li key={b.title}>
+                  <Check size={18} />
+                  <div>
+                    <strong>{b.title}</strong>
+                    <span>{b.text}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Card title="Have these ready">
+            <ol className={styles.checklist}>
+              {copy.checklist.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ol>
+          </Card>
+        </div>
+      </div>
+    </>
   )
 }

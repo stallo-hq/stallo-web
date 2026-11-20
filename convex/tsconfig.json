@@ -13,7 +13,7 @@
     "allowSyntheticDefaultImports": true,
     /* Convex Auth's test helpers ship as .ts source that imports .ts files. */
     "allowImportingTsExtensions": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
 
     /* These compiler options are required by Convex */
     "target": "ESNext",

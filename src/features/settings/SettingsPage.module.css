@@ -1,0 +1,102 @@
+.stack {
+  display: grid;
+  gap: 20px;
+  max-width: 760px;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.twoCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .twoCols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 12px 16px 12px 20px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.connection + .connection {
+  border-top: 1px solid var(--line);
+}
+
+.connection:hover {
+  background: var(--surface-2);
+}
+
+.connection:first-child {
+  margin-top: 6px;
+}
+
+.connectionIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--gray-soft);
+}
+
+.connectionText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.connectionText strong {
+  font-weight: 500;
+}
+
+.connectionText span {
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.chevron {
+  flex: none;
+  color: var(--text-3);
+}
+
+.fee {
+  color: var(--text-2);
+}
+
+.fee strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .connection {
+    flex-wrap: wrap;
+  }
+
+  .connection > :nth-child(3) {
+    margin-left: 54px;
+  }
+
+  .chevron {
+    display: none;
+  }
+}

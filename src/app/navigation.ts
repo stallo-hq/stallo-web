@@ -1,22 +1,11 @@
-import {
-  cube,
-  cubeOutline,
-  receipt,
-  receiptOutline,
-  settings,
-  settingsOutline,
-  today,
-  todayOutline,
-} from 'ionicons/icons'
+import { LayoutDashboard, Package, Settings, ShoppingBag, type LucideIcon } from 'lucide-react'
 
-/** The four sections. One list drives both the desktop sidebar and the phone tab bar. */
-export const SECTIONS = [
-  { tab: 'today', href: '/today', label: 'Today', icon: todayOutline, selectedIcon: today },
-  { tab: 'orders', href: '/orders', label: 'Orders', icon: receiptOutline, selectedIcon: receipt },
-  { tab: 'products', href: '/products', label: 'Products', icon: cubeOutline, selectedIcon: cube },
-  { tab: 'settings', href: '/settings', label: 'Settings', icon: settingsOutline, selectedIcon: settings },
-] as const
+export type Section = { to: string; label: string; icon: LucideIcon; end?: boolean }
 
-export function isSelected(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`)
-}
+/** The dashboard's sections, in sidebar order. */
+export const SECTIONS: Section[] = [
+  { to: '/app', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/app/orders', label: 'Orders', icon: ShoppingBag },
+  { to: '/app/products', label: 'Products', icon: Package },
+  { to: '/app/settings', label: 'Settings', icon: Settings },
+]
