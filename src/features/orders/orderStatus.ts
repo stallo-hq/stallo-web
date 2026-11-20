@@ -6,7 +6,7 @@ export type PaymentStatus = Doc<'orders'>['paymentStatus']
 
 /** The one place order statuses get their label and colour. */
 export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = {
-  draft: { label: 'Draft', tone: 'gray' },
+  draft: { label: 'In chat', tone: 'gray' },
   awaiting_confirmation: { label: 'Confirming', tone: 'amber' },
   awaiting_payment: { label: 'Awaiting payment', tone: 'amber' },
   paid: { label: 'Paid · to deliver', tone: 'green' },

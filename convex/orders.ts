@@ -31,8 +31,7 @@ export const list = query({
       .take(200)
 
     const visible = orders.filter((o) => {
-      if (o.status === 'draft') return false
-      if (filter === 'active') return ACTIVE_STATUSES.has(o.status)
+      if (filter === 'active') return o.status === 'draft' || ACTIVE_STATUSES.has(o.status)
       if (filter === 'delivered') return o.status === 'delivered'
       return true
     })
