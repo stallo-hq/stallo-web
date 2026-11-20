@@ -334,7 +334,8 @@ export const processMessage = internalAction({
           if (picture && visionConfigured() && c.products.length > 0) {
             try {
               match = await matchPicture(picture, c.products, c.caption)
-            } catch {
+            } catch (error) {
+              console.error('Picture matching failed:', error instanceof Error ? error.message : error)
               match = null // The seller sees the picture under Needs attention instead.
             }
           }

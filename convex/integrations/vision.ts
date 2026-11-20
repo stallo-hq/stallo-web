@@ -4,7 +4,7 @@
  * Uses Claude when ANTHROPIC_API_KEY is set, otherwise Groq (GROQ_API_KEY).
  *
  * Env (Convex):
- *   GROQ_VISION_MODEL   default meta-llama/llama-4-scout-17b-16e-instruct
+ *   GROQ_VISION_MODEL   default qwen/qwen3.8-27b
  *   LLM_MODEL           Claude model when using Anthropic (default claude-haiku-5-5)
  */
 import Anthropic from '@anthropic-ai/sdk'
@@ -101,7 +101,7 @@ async function ask(picture: Picture, system: string, text: string, json: boolean
       method: 'POST',
       headers: { Authorization: `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct',
+        model: process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b',
         temperature: 0,
         ...(json ? { response_format: { type: 'json_object' } } : {}),
         messages: [

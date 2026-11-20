@@ -24,8 +24,9 @@ export const describeProduct = internalAction({
         product.name,
       )
       await ctx.runMutation(internal.vision.saveDescription, { productId, photoId: product.photoId, description })
-    } catch {
+    } catch (error) {
       // Without a description the product is still matched by its name.
+      console.error('Describing the product photo failed:', error instanceof Error ? error.message : error)
     }
     return null
   },
