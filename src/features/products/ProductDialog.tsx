@@ -89,6 +89,7 @@ export function ProductDialog({
       title={product ? 'Edit product' : 'Add a product'}
       description="Customers are always charged the price you set here."
       onSubmit={submit}
+      size="wide"
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -98,65 +99,83 @@ export function ProductDialog({
         </>
       }
     >
-      <Field
-        label="Name"
-        placeholder="Jollof with chicken"
-        maxLength={80}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        error={errors.name}
-        hint="Use the name customers will type, so Stallo can match it."
-        autoFocus
-      />
-      <div className={styles.formRow}>
-        <Field
-          label="Price"
-          prefix="GH₵"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          error={errors.price}
-        />
-        <Field
-          label="In stock"
-          inputMode="numeric"
-          placeholder="0"
-          value={stock}
-          onChange={(e) => setStock(e.target.value)}
-          error={errors.stock}
-        />
-      </div>
-      <div className={styles.photoPicker}>
-        <div className={styles.photoPreview}>{previewUrl ? <img src={previewUrl} alt="" /> : <ImagePlus size={26} />}</div>
-        <div className={styles.photoText}>
-          <span className={styles.photoLabel}>Photo</span>
-          <span>Helps Stallo recognise this item when a customer sends a picture, like a TikTok screenshot.</span>
-          <div className={styles.photoActions}>
-            <Button size="sm" onClick={() => fileInput.current?.click()}>
-              {previewUrl ? 'Change photo' : 'Add photo'}
-            </Button>
-            {previewUrl && (
-              <Button size="sm" variant="ghost" onClick={() => setPhoto(product?.photoUrl ? 'removed' : null)}>
-                Remove
-              </Button>
+      <div className={styles.editor}>
+        <div className={styles.photoColumn}>
+          <button
+            type="button"
+            className={styles.photoPreview}
+            onClick={() => fileInput.current?.click()}
+            aria-label={previewUrl ? 'Change photo' : 'Add photo'}
+          >
+            {previewUrl ? (
+              <img src={previewUrl} alt="" />
+            ) : (
+              <span className={styles.photoEmpty}>
+                <ImagePlus size={28} />
+                <span>Add photo</span>
+              </span>
             )}
+          </button>
+          <div className={styles.photoText}>
+            <div className={styles.photoActions}>
+              <Button size="sm" onClick={() => fileInput.current?.click()}>
+                {previewUrl ? 'Change photo' : 'Add photo'}
+              </Button>
+              {previewUrl && (
+                <Button size="sm" variant="ghost" onClick={() => setPhoto(product?.photoUrl ? 'removed' : null)}>
+                  Remove
+                </Button>
+              )}
+            </div>
+            <span>Helps Stallo recognise this item when a customer sends a picture, like a TikTok screenshot.</span>
+            {errors.photo && <span className={styles.formError}>{errors.photo}</span>}
           </div>
-          {errors.photo && <span className={styles.formError}>{errors.photo}</span>}
+          <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPhoto} />
         </div>
-        <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPhoto} />
+
+        <div className={styles.fieldsColumn}>
+          <Field
+            label="Name"
+            placeholder="Jollof with chicken"
+            maxLength={80}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={errors.name}
+            hint="Use the name customers will type, so Stallo can match it."
+            autoFocus
+          />
+          <div className={styles.formRow}>
+            <Field
+              label="Price"
+              prefix="GH₵"
+              inputMode="decimal"
+              placeholder="0.00"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              error={errors.price}
+            />
+            <Field
+              label="In stock"
+              inputMode="numeric"
+              placeholder="0"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              error={errors.stock}
+            />
+          </div>
+          <Switch
+            label="Available to order"
+            hint="Turn off to hide it from customers without deleting it."
+            checked={active}
+            onCheckedChange={setActive}
+          />
+          {errors.form && (
+            <p className={styles.formError} role="alert">
+              {errors.form}
+            </p>
+          )}
+        </div>
       </div>
-      <Switch
-        label="Available to order"
-        hint="Turn off to hide it from customers without deleting it."
-        checked={active}
-        onCheckedChange={setActive}
-      />
-      {errors.form && (
-        <p className={styles.formError} role="alert">
-          {errors.form}
-        </p>
-      )}
     </Dialog>
   )
 }

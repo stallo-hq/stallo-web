@@ -111,23 +111,41 @@
   object-fit: cover;
 }
 
-.photoPicker {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+.editor {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.photoColumn {
+  display: grid;
+  gap: 12px;
+}
+
+.fieldsColumn {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
 }
 
 .photoPreview {
   display: grid;
   place-items: center;
-  flex: none;
-  width: 88px;
-  height: 88px;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
   border: 1px dashed var(--line-strong);
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   background: var(--surface-2);
   color: var(--text-3);
   overflow: hidden;
+  cursor: pointer;
+}
+
+.photoPreview:hover {
+  border-color: var(--text-3);
+  color: var(--text-2);
 }
 
 .photoPreview img {
@@ -136,11 +154,19 @@
   object-fit: cover;
 }
 
+.photoEmpty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .photoText {
   display: grid;
   gap: 8px;
-  font-size: 14px;
-  color: var(--text-2);
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .photoActions {
@@ -149,10 +175,16 @@
   gap: 8px;
 }
 
-.photoLabel {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
+@media (max-width: 640px) {
+  .editor {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .photoColumn {
+    grid-template-columns: 96px 1fr;
+    align-items: center;
+  }
 }
 
 .hiddenName {

@@ -13,10 +13,12 @@ type DialogProps = {
   footer?: ReactNode
   /** Wraps the body and footer in a form so Enter submits. */
   onSubmit?: (e: FormEvent<HTMLFormElement>) => void
+  /** "wide" for forms with two columns on desktop. */
+  size?: 'default' | 'wide'
 }
 
 /** Centred dialog on desktop, bottom sheet on phones. */
-export function Dialog({ open, onOpenChange, title, description, children, footer, onSubmit }: DialogProps) {
+export function Dialog({ open, onOpenChange, title, description, children, footer, onSubmit, size = 'default' }: DialogProps) {
   const inner = (
     <>
       {children ? <div className={styles.body}>{children}</div> : null}
@@ -27,7 +29,7 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className={styles.overlay} />
-        <RadixDialog.Content className={styles.content}>
+        <RadixDialog.Content className={styles.content} data-size={size}>
           <div className={styles.header}>
             <div>
               <RadixDialog.Title className={styles.title}>{title}</RadixDialog.Title>

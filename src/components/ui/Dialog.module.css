@@ -22,6 +22,12 @@
   animation: pop 0.18s ease;
 }
 
+@media (min-width: 641px) {
+  .content[data-size='wide'] {
+    width: min(780px, calc(100vw - 32px));
+  }
+}
+
 .content:focus-visible {
   box-shadow: var(--shadow-dialog);
 }
