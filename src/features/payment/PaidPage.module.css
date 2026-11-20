@@ -1,0 +1,27 @@
+.page {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--ink);
+  color: var(--ink-text);
+  text-align: center;
+}
+
+.icon {
+  margin-top: 16px;
+  color: var(--accent);
+}
+
+.page h1 {
+  font-size: clamp(32px, 6vw, 48px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}
+
+.page p {
+  max-width: 420px;
+  color: var(--ink-muted);
+}

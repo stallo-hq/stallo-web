@@ -1,0 +1,22 @@
+.box {
+  position: relative;
+}
+
+.select {
+  appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.select:disabled {
+  cursor: default;
+  color: var(--text-3);
+}
+
+.chevron {
+  position: absolute;
+  right: 14px;
+  pointer-events: none;
+  color: var(--text-2);
+}

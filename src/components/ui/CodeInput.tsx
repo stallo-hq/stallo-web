@@ -2,32 +2,36 @@ import { OTPInput, REGEXP_ONLY_DIGITS } from 'input-otp'
 import { cx } from '../../lib/cx'
 import styles from './CodeInput.module.css'
 
-/** Six boxes for an SMS code. Pastes and autofills ("one-time-code") work. */
+/** Boxes for a numeric code (6 for SMS codes, 4 for delivery codes). Pastes and autofills work. */
 export function CodeInput({
   value,
   onChange,
   onComplete,
   invalid,
   disabled,
+  length = 6,
+  autoFocus = true,
 }: {
   value: string
   onChange: (value: string) => void
   onComplete?: (value: string) => void
   invalid?: boolean
   disabled?: boolean
+  length?: number
+  autoFocus?: boolean
 }) {
   return (
     <OTPInput
-      maxLength={6}
+      maxLength={length}
       value={value}
       onChange={onChange}
       onComplete={onComplete}
       disabled={disabled}
       pattern={REGEXP_ONLY_DIGITS}
-      autoFocus
+      autoFocus={autoFocus}
       inputMode="numeric"
-      autoComplete="one-time-code"
-      aria-label="6-digit code"
+      autoComplete={length === 6 ? 'one-time-code' : 'off'}
+      aria-label={`${length}-digit code`}
       containerClassName={styles.container}
       render={({ slots }) => (
         <>

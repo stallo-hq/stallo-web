@@ -31,11 +31,20 @@ export function Button({ variant, size, block, loading, icon, className, childre
   )
 }
 
-type ButtonLinkProps = LinkProps & StyleProps & { icon?: ReactNode }
+type ButtonLinkProps = LinkProps & StyleProps & { icon?: ReactNode; /** Opens another site in a new tab. */ external?: boolean }
 
-export function ButtonLink({ variant, size, block, icon, className, children, ...rest }: ButtonLinkProps) {
+export function ButtonLink({ variant, size, block, icon, className, children, external, to, ...rest }: ButtonLinkProps) {
+  const cls = buttonClass({ variant, size, block }, className)
+  if (external) {
+    return (
+      <a className={cls} href={String(to)} target="_blank" rel="noopener noreferrer">
+        {icon}
+        {children}
+      </a>
+    )
+  }
   return (
-    <Link className={buttonClass({ variant, size, block }, className)} {...rest}>
+    <Link className={cls} to={to} {...rest}>
       {icon}
       {children}
     </Link>

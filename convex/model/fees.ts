@@ -27,3 +27,12 @@ export function calculateFee(subtotalPesewas: number, config: FeeConfig = feeCon
   const fee = Math.round((subtotalPesewas * config.percent) / 100) + config.flatPesewas
   return Math.min(fee, subtotalPesewas)
 }
+
+/** A seller's own fee when set by Stallo, otherwise the deployment default. */
+export function sellerFeeConfig(seller: { feePercent?: number; feeFlatPesewas?: number }): FeeConfig {
+  const base = feeConfig()
+  return {
+    percent: seller.feePercent ?? base.percent,
+    flatPesewas: seller.feeFlatPesewas ?? base.flatPesewas,
+  }
+}

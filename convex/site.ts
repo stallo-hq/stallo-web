@@ -15,3 +15,28 @@ export const smsTestMode = query({
   returns: v.boolean(),
   handler: async () => process.env.SMS_TEST_MODE === 'true',
 })
+
+/**
+ * Public: which integrations are switched on, so the dashboard shows the right
+ * next step. Only non-secret values (Meta's app and configuration ids are meant
+ * to be public: the browser needs them to open the signup popup).
+ */
+export const integrations = query({
+  args: {},
+  returns: v.object({
+    embeddedSignup: v.union(v.null(), v.object({ appId: v.string(), configId: v.string(), graphVersion: v.string() })),
+    manualWhatsApp: v.boolean(),
+    payments: v.boolean(),
+    assistant: v.boolean(),
+  }),
+  handler: async () => {
+    const appId = process.env.META_APP_ID
+    const configId = process.env.WHATSAPP_CONFIG_ID
+    return {
+      embeddedSignup: appId && configId ? { appId, configId, graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v27.0' } : null,
+      manualWhatsApp: process.env.WHATSAPP_MANUAL_CONNECT === 'true',
+      payments: Boolean(process.env.PAYSTACK_SECRET_KEY),
+      assistant: Boolean(process.env.ANTHROPIC_API_KEY),
+    }
+  },
+})

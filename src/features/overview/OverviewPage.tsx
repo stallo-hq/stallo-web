@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router'
 import { PageHeader } from '../../components/PageHeader'
-import { ButtonLink } from '../../components/ui/Button'
+import { Button, ButtonLink } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { PageSpinner } from '../../components/ui/Spinner'
@@ -23,7 +23,7 @@ import { formatCedis } from '../../lib/money'
 import { OrderTable } from '../orders/OrderTable'
 import { useOrders } from '../orders/useOrders'
 import styles from './OverviewPage.module.css'
-import { useOverview } from './useOverview'
+import { useOverview, useResolveAttention } from './useOverview'
 
 function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint: string }) {
   return (
@@ -96,6 +96,7 @@ function SetupChecklist({ setup }: { setup: Setup }) {
 export function OverviewPage() {
   const seller = useSeller()
   const overview = useOverview()
+  const resolve = useResolveAttention()
   const recent = useOrders('all')
 
   if (overview === undefined || seller === undefined) return <PageSpinner />
@@ -176,8 +177,19 @@ export function OverviewPage() {
                   <AlertTriangle size={17} />
                   <div>
                     <strong>{a.summary}</strong>
-                    <span>{formatShortDateTime(a.createdAt)}</span>
+                    <span>
+                      {formatShortDateTime(a.createdAt)}
+                      {a.orderId && (
+                        <>
+                          {' · '}
+                          <Link to={`/app/orders/${a.orderId}`}>View order</Link>
+                        </>
+                      )}
+                    </span>
                   </div>
+                  <Button size="sm" variant="ghost" onClick={() => void resolve({ id: a._id })} aria-label="Mark as done">
+                    Done
+                  </Button>
                 </li>
               ))}
             </ul>

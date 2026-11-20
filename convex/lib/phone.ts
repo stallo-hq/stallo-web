@@ -16,3 +16,16 @@ export function toE164Ghana(input: string): string | null {
   if (!/^[25]/.test(national)) return null
   return `+233${national}`
 }
+
+/** +233241234567 → 024 123 4567 */
+export function formatGhanaPhone(e164: string): string {
+  if (!e164.startsWith('+233') || e164.length !== 13) return e164
+  const n = `0${e164.slice(4)}`
+  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`
+}
+
+/** Any international number (WhatsApp sends "233241234567") → "+233241234567". */
+export function toE164(waId: string): string {
+  const digits = waId.replace(/\D/g, '')
+  return `+${digits}`
+}

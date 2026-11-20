@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { components } from './_generated/api'
 import { mutation, query } from './_generated/server'
+import { payoutType } from './lib/validators'
 import { currentSeller, findSellerForUser, requireSeller, requireUserId } from './model/auth'
 import { cleanText, LIMITS } from './model/validation'
 
@@ -9,9 +10,11 @@ const sellerView = v.object({
   businessName: v.string(),
   phone: v.string(),
   whatsappConnected: v.boolean(),
+  whatsappDisplayPhone: v.optional(v.string()),
   payoutsConnected: v.boolean(),
-  whatsappSetupRequestedAt: v.optional(v.number()),
-  payoutsSetupRequestedAt: v.optional(v.number()),
+  payout: v.optional(
+    v.object({ type: payoutType, providerName: v.string(), accountLast4: v.string(), accountName: v.optional(v.string()) }),
+  ),
 })
 
 /** The signed-in user's seller profile, or null if they haven't set one up yet. */
@@ -26,22 +29,10 @@ export const mine = query({
       businessName: seller.businessName,
       phone: seller.phone,
       whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
+      whatsappDisplayPhone: seller.whatsappDisplayPhone,
       payoutsConnected: seller.paystackSubaccountCode !== undefined,
-      whatsappSetupRequestedAt: seller.whatsappSetupRequestedAt,
-      payoutsSetupRequestedAt: seller.payoutsSetupRequestedAt,
+      payout: seller.payout,
     }
-  },
-})
-
-/** Ask the Stallo team to connect WhatsApp or payouts. Idempotent: keeps the first request time. */
-export const requestSetup = mutation({
-  args: { kind: v.union(v.literal('whatsapp'), v.literal('payouts')) },
-  returns: v.null(),
-  handler: async (ctx, { kind }) => {
-    const seller = await requireSeller(ctx)
-    const field = kind === 'whatsapp' ? 'whatsappSetupRequestedAt' : 'payoutsSetupRequestedAt'
-    if (seller[field] === undefined) await ctx.db.patch(seller._id, { [field]: Date.now() })
-    return null
   },
 })
 

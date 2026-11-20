@@ -4,8 +4,10 @@ import {
   attentionType,
   conversationState,
   deliveryStatus,
+  messageChannel,
   onboardingState,
   orderStatus,
+  payoutType,
   paymentStatus,
   processingStatus,
 } from './lib/validators'
@@ -40,7 +42,19 @@ export default defineSchema({
     onboarding: onboardingState,
     whatsappPhoneNumberId: v.optional(v.string()),
     whatsappBusinessAccountId: v.optional(v.string()),
+    whatsappDisplayPhone: v.optional(v.string()),
+    whatsappConnectedAt: v.optional(v.number()),
     paystackSubaccountCode: v.optional(v.string()),
+    payout: v.optional(
+      v.object({
+        type: payoutType,
+        providerName: v.string(),
+        accountLast4: v.string(),
+        accountName: v.optional(v.string()),
+      }),
+    ),
+    // Orders are numbered per seller, starting at 1001.
+    nextOrderNumber: v.optional(v.number()),
     // Pilot: sellers ask the Stallo team to connect WhatsApp / payouts with them.
     whatsappSetupRequestedAt: v.optional(v.number()),
     payoutsSetupRequestedAt: v.optional(v.number()),
@@ -50,6 +64,12 @@ export default defineSchema({
   })
     .index('by_owner', ['ownerId'])
     .index('by_whatsapp_phone_number_id', ['whatsappPhoneNumberId']),
+
+  // Server-only credentials per seller. Never returned by any public function.
+  sellerSecrets: defineTable({
+    sellerId: v.id('sellers'),
+    whatsappToken: v.optional(v.string()),
+  }).index('by_seller', ['sellerId']),
 
   products: defineTable({
     sellerId: v.id('sellers'),
@@ -73,23 +93,34 @@ export default defineSchema({
     state: conversationState,
     draftOrderId: v.optional(v.id('orders')),
     lastInboundAt: v.number(),
+    // Recent turns, newest last, so the assistant has context. Capped in model/conversation.ts.
+    history: v.optional(
+      v.array(v.object({ from: v.union(v.literal('customer'), v.literal('stallo')), text: v.string(), at: v.number() })),
+    ),
   }).index('by_seller_and_customer', ['sellerId', 'customerId']),
 
   inboundMessages: defineTable({
     whatsappMessageId: v.string(),
     sellerId: v.optional(v.id('sellers')),
+    // The WhatsApp number it was sent to, and who sent it (E.164).
+    phoneNumberId: v.optional(v.string()),
+    from: v.optional(v.string()),
+    profileName: v.optional(v.string()),
     raw: v.any(),
     status: processingStatus,
     attempts: v.number(),
+    lastAttemptAt: v.optional(v.number()),
     error: v.optional(v.string()),
     receivedAt: v.number(),
   })
     .index('by_whatsapp_message_id', ['whatsappMessageId'])
-    .index('by_status_and_received', ['status', 'receivedAt']),
+    .index('by_status_and_received', ['status', 'receivedAt'])
+    .index('by_number_and_from', ['phoneNumberId', 'from', 'receivedAt']),
 
   orders: defineTable({
     sellerId: v.id('sellers'),
     customerId: v.id('customers'),
+    number: v.optional(v.number()),
     items: v.array(
       v.object({
         productId: v.id('products'),
@@ -104,8 +135,11 @@ export default defineSchema({
     status: orderStatus,
     paymentStatus: paymentStatus,
     address: v.optional(v.string()),
+    location: v.optional(v.object({ lat: v.number(), lng: v.number() })),
     deliveryId: v.optional(v.id('deliveries')),
-    timeline: v.array(v.object({ status: orderStatus, at: v.number() })),
+    paymentUrl: v.optional(v.string()),
+    note: v.optional(v.string()),
+    timeline: v.array(v.object({ status: orderStatus, at: v.number(), note: v.optional(v.string()) })),
     createdAt: v.number(),
   })
     .index('by_seller_and_created', ['sellerId', 'createdAt'])
@@ -113,6 +147,8 @@ export default defineSchema({
 
   payments: defineTable({
     orderId: v.id('orders'),
+    sellerId: v.optional(v.id('sellers')),
+    feePesewas: v.optional(v.number()),
     reference: v.string(),
     amountPesewas: v.number(),
     status: paymentStatus,
@@ -123,13 +159,21 @@ export default defineSchema({
 
   deliveries: defineTable({
     orderId: v.id('orders'),
+    sellerId: v.optional(v.id('sellers')),
     riderName: v.string(),
     riderPhone: v.string(),
     pinHash: v.string(),
+    // The rider's no-login page link is /r/<token>; only its hash is stored.
+    riderTokenHash: v.optional(v.string()),
     attempts: v.number(),
     status: deliveryStatus,
     notes: v.optional(v.string()),
-  }).index('by_order', ['orderId']),
+    dispatchedAt: v.optional(v.number()),
+    closedAt: v.optional(v.number()),
+  })
+    .index('by_order', ['orderId'])
+    .index('by_rider_token', ['riderTokenHash'])
+    .index('by_seller_rider_status', ['sellerId', 'riderPhone', 'status']),
 
   attentionItems: defineTable({
     sellerId: v.id('sellers'),
@@ -139,15 +183,25 @@ export default defineSchema({
     summary: v.string(),
     resolved: v.boolean(),
     createdAt: v.number(),
-  }).index('by_seller_and_resolved', ['sellerId', 'resolved']),
+  })
+    .index('by_seller_and_resolved', ['sellerId', 'resolved'])
+    .index('by_order', ['orderId']),
 
   outboundMessages: defineTable({
     sellerId: v.id('sellers'),
+    channel: v.optional(messageChannel),
     recipient: v.string(),
-    template: v.optional(v.string()),
+    // Free-form text, used inside the 24-hour window. The template is the fallback outside it.
     text: v.optional(v.string()),
+    template: v.optional(v.string()),
+    templateParams: v.optional(v.array(v.string())),
+    orderId: v.optional(v.id('orders')),
     status: processingStatus,
+    attempts: v.optional(v.number()),
+    whatsappMessageId: v.optional(v.string()),
     error: v.optional(v.string()),
     createdAt: v.number(),
-  }).index('by_seller', ['sellerId']),
+  })
+    .index('by_seller', ['sellerId'])
+    .index('by_whatsapp_message_id', ['whatsappMessageId']),
 })

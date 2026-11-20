@@ -56,15 +56,14 @@ function BusinessCard({ name, phone }: { name: string; phone: string }) {
   )
 }
 
-function ConnectionRow({ to, icon: Icon, title, text, connected, requestedAt }: {
+function ConnectionRow({ to, icon: Icon, title, text, connected }: {
   to: string
   icon: typeof MessageCircle
   title: string
   text: string
   connected: boolean
-  requestedAt?: number
 }) {
-  const status = connectionStatus(connected, requestedAt)
+  const status = connectionStatus(connected)
   return (
     <Link to={to} className={styles.connection}>
       <span className={styles.connectionIcon}>
@@ -149,7 +148,6 @@ export function SettingsPage() {
             title="WhatsApp"
             text="Where customers send their orders"
             connected={seller.whatsappConnected}
-            requestedAt={seller.whatsappSetupRequestedAt}
           />
           <ConnectionRow
             to="/app/settings/payouts"
@@ -157,7 +155,6 @@ export function SettingsPage() {
             title="Payouts"
             text="The MoMo or bank account you get paid to"
             connected={seller.payoutsConnected}
-            requestedAt={seller.payoutsSetupRequestedAt}
           />
         </Card>
 

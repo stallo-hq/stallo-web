@@ -1,0 +1,147 @@
+.page {
+  min-height: 100dvh;
+  background: var(--canvas);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--ink);
+  color: var(--ink-text);
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+.main {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.card h1 {
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}
+
+.card h2 {
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.card p {
+  color: var(--text-2);
+}
+
+.eyebrow {
+  font-size: 13px;
+}
+
+.big {
+  color: var(--text) !important;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.items {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items span {
+  color: var(--text-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.call,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: var(--r-md);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.call {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.secondary {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.pin {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.message {
+  font-size: 14px;
+  text-align: center;
+}
+
+.message[data-tone='error'] {
+  color: var(--red) !important;
+}
+
+.message[data-tone='ok'] {
+  color: var(--green) !important;
+}
+
+.failForm {
+  display: grid;
+  gap: 12px;
+}
+
+.result {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 8px;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.result svg {
+  color: var(--red);
+}
+
+.result[data-tone='ok'] svg {
+  color: var(--green);
+}
+
+.result h1 {
+  color: var(--text);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+}

@@ -1,55 +1,6 @@
-/// <reference types="vite/client" />
-import { registerCore, sessionIdentity } from '@convex-dev/auth/test'
-import { registerUsername } from '@convex-dev/auth/components/username/test'
-import { convexTest } from 'convex-test'
 import { describe, expect, it } from 'vitest'
-import { api, components } from './_generated/api'
-import schema from './schema'
-
-const modules = import.meta.glob('./**/*.ts')
-
-function setup() {
-  const t = convexTest(schema, modules)
-  registerCore(t)
-  registerUsername(t)
-  return t
-}
-
-type T = ReturnType<typeof setup>
-
-const TTL = { accessTokenTtlSeconds: 3600, refreshInactivityTimeoutSeconds: 86400, sessionMaxLifetimeSeconds: 86400 }
-
-/**
- * A signed-in account that hasn't confirmed its phone yet. Does what password
- * sign-up does once the password is checked (the password hashing itself
- * doesn't run under vitest): create the user, store the phone number as the
- * username, open a real session.
- */
-async function account(t: T, phone: string) {
-  const userId = await t.run((ctx) => ctx.db.insert('users', { createdAt: Date.now() }))
-  await t.mutation(components.authUsername.public.setUsername, { userId, username: phone })
-  const tokens = await t.mutation(components.auth.public._internal_dangerous_signIn, {
-    claims: { method: 'usernamePassword', profile: {} },
-    componentPath: 'authUsername',
-    userId,
-    ...TTL,
-  })
-  return t.withIdentity(sessionIdentity(tokens))
-}
-
-/** A token proving we hold the phone, from the real SMS-code actions (SMS_TEST_MODE: code 123456). */
-async function phoneToken(t: T, phone: string) {
-  await t.action(api.phoneVerification.sendCode, { phone })
-  return (await t.action(api.phoneVerification.verifyCode, { phone, code: '123456' })).token
-}
-
-/** A fully set-up seller: account, confirmed phone, business. */
-async function seller(t: T, phone: string, businessName: string) {
-  const as = await account(t, phone)
-  await as.mutation(api.account.confirmPhone, { token: await phoneToken(t, phone) })
-  await as.mutation(api.sellers.create, { businessName })
-  return as
-}
+import { account, phoneToken, seller, setup } from '../test/convexTest'
+import { api } from './_generated/api'
 
 const jollof = { name: 'Jollof with chicken', pricePesewas: 6500, stock: 20, active: true }
 
@@ -99,16 +50,6 @@ describe('sellers', () => {
     await ama.mutation(api.sellers.create, { businessName: 'Second try' })
     const me = await ama.query(api.sellers.mine, {})
     expect(me).toMatchObject({ businessName: 'Ama’s Kitchen', phone: '+233241234567', whatsappConnected: false })
-  })
-
-  it('keeps the first setup request time', async () => {
-    const t = setup()
-    const ama = await seller(t, '+233241234567', 'Ama’s Kitchen')
-    await ama.mutation(api.sellers.requestSetup, { kind: 'whatsapp' })
-    const first = (await ama.query(api.sellers.mine, {}))?.whatsappSetupRequestedAt
-    await ama.mutation(api.sellers.requestSetup, { kind: 'whatsapp' })
-    expect(first).toBeTypeOf('number')
-    expect((await ama.query(api.sellers.mine, {}))?.whatsappSetupRequestedAt).toBe(first)
   })
 
   it('rejects signed-out callers', async () => {

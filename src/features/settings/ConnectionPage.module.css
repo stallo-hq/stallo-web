@@ -13,8 +13,77 @@
 
 .status > div {
   display: grid;
-  justify-items: start;
+  gap: 16px;
+}
+
+.statusHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.choices {
+  display: grid;
+  gap: 6px;
+}
+
+.choiceHint {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.manual,
+.form {
+  display: grid;
   gap: 14px;
+}
+
+.manual {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.manual > span {
+  margin-top: -10px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.error {
+  font-size: 14px;
+  color: var(--red);
+}
+
+.facts {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.facts dt {
+  color: var(--text-2);
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
 }
 
 .status p {

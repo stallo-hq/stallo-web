@@ -47,3 +47,12 @@ export const FILTERS: { value: OrderFilter; label: string; emptyTitle: string; e
     emptyMessage: 'Every order your customers place on WhatsApp will be listed here.',
   },
 ]
+
+export type DeliveryStatus = Doc<'deliveries'>['status']
+
+export const DELIVERY_STATUS: Record<DeliveryStatus, { label: string; tone: Tone }> = {
+  dispatched: { label: 'With the rider', tone: 'blue' },
+  delivered: { label: 'Delivered', tone: 'green' },
+  failed: { label: 'Failed', tone: 'red' },
+  returned: { label: 'Returned', tone: 'gray' },
+}

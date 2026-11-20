@@ -1,21 +1,14 @@
 import { ConvexError } from 'convex/values'
 import type { MutationCtx } from '../_generated/server'
+import { sha256 } from './crypto'
+
+export { randomToken, sha256 } from './crypto'
 
 /** How long a verified-phone token stays usable. */
 export const TOKEN_TTL_MS = 30 * 60 * 1000
 /** Codes per phone number per hour, and across the whole service per hour. */
 export const SENDS_PER_PHONE_PER_HOUR = 5
 export const DEFAULT_SENDS_PER_HOUR = 300
-
-export function randomToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-export async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
-  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('')
-}
 
 /**
  * Spends a verified-phone token: it must exist, be for this phone, be fresh

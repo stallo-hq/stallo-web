@@ -1,0 +1,6 @@
+{
+  "framework": "vite",
+  "buildCommand": "npx convex deploy --cmd 'npm run build'",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+}

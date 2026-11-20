@@ -1,4 +1,5 @@
 import type { FunctionReturnType } from 'convex/server'
+import { Link } from 'react-router'
 import type { api } from '../../../convex/_generated/api'
 import { Badge } from '../../components/ui/Badge'
 import { formatShortDateTime } from '../../lib/dates'
@@ -24,10 +25,12 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
       {orders.map((o) => {
         const status = ORDER_STATUS[o.status]
         return (
-          <div key={o._id} className={styles.row} role="row">
+          <Link key={o._id} to={`/app/orders/${o._id}`} className={styles.row} role="row" aria-label={`Order ${o.label}`}>
             <div role="cell" className={styles.customer}>
               <strong>{o.customerName ?? formatGhanaPhone(o.customerPhone)}</strong>
-              <span>{formatShortDateTime(o.createdAt)}</span>
+              <span>
+                {o.label} · {formatShortDateTime(o.createdAt)}
+              </span>
             </div>
             <div role="cell" className={styles.items}>
               {o.itemsSummary}
@@ -38,7 +41,7 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
             <div role="cell" className={`${styles.right} num`}>
               {formatCedis(o.totalPesewas)}
             </div>
-          </div>
+          </Link>
         )
       })}
     </div>
