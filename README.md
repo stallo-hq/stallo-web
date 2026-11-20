@@ -1,46 +1,53 @@
 # stallo-web
 
-Seller dashboard for **Stallo**: orders, inventory, payments, daily summaries, and the "needs attention" queue for anything the system couldn't handle on its own.
+Seller dashboard for **Stallo**, plus the Convex backend (`convex/`) that holds all of Stallo's data.
 
-React 19 · TypeScript · Vite · React Router · TanStack Query
+React 19 · TypeScript · Vite · Ionic React (iOS mode) · React Router 6 · Convex · Convex Auth
 
-> Team roles, workflow and conventions live in the org handbook: `stallo-hq/.github` → `HANDBOOK.md`.
+> Team roles and workflow: `stallo-hq/.github` → `HANDBOOK.md`. MVP rules: `CLAUDE.md` in the workspace root.
 
 ## Getting started
 
 ```bash
-cp .env.example .env      # points at the API, default http://localhost:8000
 npm install
-npm run dev               # http://localhost:5173
+npx convex dev      # first run: log in, create the project; writes .env.local. Leave it running.
+npm run dev         # in a second terminal → http://localhost:5173
 ```
 
-> `package-lock.json` isn't committed yet. Whoever runs the first `npm install` commits the generated lock file in their first PR, and CI is then switched back to `npm ci` with npm caching.
-
-You need `stallo-api` running for real data. See its README.
+`npx convex dev` watches `convex/`, pushes changes to your dev deployment and regenerates `convex/_generated/`.
 
 ## Scripts
 
 | Command | Does |
 |---|---|
-| `npm run dev` | Dev server with hot reload |
+| `npm run dev` | Vite dev server |
+| `npm run convex` | Same as `npx convex dev` |
 | `npm run build` | Type-check and production build |
 | `npm run lint` | Lint (oxlint) |
-| `npm run gen:api` | Regenerate `src/lib/api-types.ts` from the running API's OpenAPI schema |
 
 ## Layout
 
 ```
+convex/           Convex backend: schema, auth, functions (owned by this repo)
+  schema.ts       all tables (money in pesewas, phones in E.164)
+  auth.ts         phone number + password sign-in (Convex Auth)
+  lib/            shared validators (order/payment status values)
 src/
-  app/            providers (React Query) and the router. Shared; changes need a lead review
-  components/     shared UI: layout, buttons, tables, etc.
-  features/       one folder per area; each owns its pages, components and hooks
-    auth/  dashboard/  orders/  inventory/  payments/  exceptions/  settings/
-  lib/            api client and generated API types
+  app/            App (auth gate) and Tabs (Today, Orders, Products, Settings)
+  components/     LargeTitlePage, EmptyState
+  features/       one folder per area: auth, today, orders, products, settings
+  lib/            haptics, phone formatting
+  theme/          iOS text styles (typography.css) and layout helpers
 ```
 
-## Conventions
+## Design rules
 
-- **Features own their code.** Put a feature's components, hooks (`useOrders.ts`) and types inside its folder. Move something to `components/` only once a second feature needs it.
-- **Server data goes through TanStack Query** with hooks like `useOrders()`, `useCreateProduct()`. Don't keep API data in `useState`.
-- **Use the generated API types** from `npm run gen:api` instead of writing response types by hand. When the backend changes a schema, regenerate the types and commit them in the same PR.
-- **Don't hardcode URLs.** Everything goes through `src/lib/api.ts`, with the base URL taken from `VITE_API_URL`.
+The UI follows Apple's Human Interface Guidelines using Ionic's own components in iOS mode. Use Ionic components only (no Tailwind, shadcn or other kits), Ionicons for icons, Ionic colour variables (no hex values), and the text classes in `src/theme/typography.css`. See `CLAUDE.md` §6.
+
+## Sign-in
+
+Sellers sign in with their Ghana mobile number and a password (at least 10 characters). The number is stored as `+233XXXXXXXXX` and is the account's username.
+
+## Known issue
+
+`npm audit` reports moderate advisories in React Router 6 (open redirect in `<Link>`/`navigate` with untrusted input; SSR hydration). Ionic React Router 9 requires React Router 6, and this app never navigates to user-supplied URLs and does no SSR. Revisit when Ionic supports React Router 7.
