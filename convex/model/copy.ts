@@ -11,7 +11,17 @@ import { orderLabel } from './orders'
 
 type Product = Pick<Doc<'products'>, 'name' | 'pricePesewas'>
 type Order = Pick<Doc<'orders'>, '_id' | 'number' | 'items' | 'subtotalPesewas' | 'totalPesewas' | 'address'> &
-  Partial<Pick<Doc<'orders'>, 'recipientName' | 'recipientPhone' | 'location' | 'digitalAddress'>>
+  Partial<
+    Pick<
+      Doc<'orders'>,
+      'recipientName' | 'recipientPhone' | 'location' | 'digitalAddress' | 'deliveryFeePesewas' | 'paymentMethod' | 'cashDuePesewas'
+    >
+  >
+
+/** For cash orders: what the rider collects. */
+function cashLine(order: Order): string {
+  return order.paymentMethod === 'cash' && order.cashDuePesewas ? `Please have ${formatCedis(order.cashDuePesewas)} ready in cash for the rider.` : ''
+}
 
 /** "Ama (024 123 4567)", "Ama", "024 123 4567", or null when the buyer receives it. */
 export function receiverLabel(order: Pick<Order, 'recipientName' | 'recipientPhone'>): string | null {
@@ -74,14 +84,16 @@ export const copy = {
 
   orderLines(order: Order) {
     const lines = order.items.map((i) => `${i.qty} × ${i.name} — ${formatCedis(i.unitPricePesewas * i.qty)}`)
-    return `${lines.join('\n')}\nTotal: ${formatCedis(order.subtotalPesewas)}`
+    const delivery = order.deliveryFeePesewas ?? 0
+    if (delivery > 0) lines.push(`Delivery — ${formatCedis(delivery)}`)
+    return `${lines.join('\n')}\nTotal: ${formatCedis(order.subtotalPesewas + delivery)}`
   },
 
   askAddress(order: Order) {
     return `Here is your order:\n\n${copy.orderLines(order)}\n\nWhere should we deliver it? You can type the address or share your location.`
   },
 
-  confirm(order: Order, usingSavedAddress: boolean) {
+  confirm(order: Order, usingSavedAddress: boolean, cashOffered = false) {
     const lines = [`Delivery to: ${order.address}`]
     const receiver = receiverLabel(order)
     if (receiver) lines.push(`Receiver: ${receiver}`)
@@ -90,7 +102,23 @@ export const copy = {
       !order.location && !order.digitalAddress
         ? '\n\nTo help the rider find the place, you can also share the location pin (tap + or the clip icon, then Location) or a Ghana Post digital address like GA-123-4567.'
         : ''
-    return `Please confirm your order:\n\n${copy.orderLines(order)}\n${lines.join('\n')}${pinTip}\n\nReply YES to confirm, or tell me what to change.`
+    const delivery = order.deliveryFeePesewas ?? 0
+    const ask = cashOffered
+      ? `Reply YES to pay now with mobile money or card, or CASH to pay the rider when it arrives.${
+          delivery > 0
+            ? ` With cash, you pay the ${formatCedis(delivery)} delivery fee now and ${formatCedis(order.subtotalPesewas)} to the rider.`
+            : ''
+        } You can also tell me what to change.`
+      : 'Reply YES to confirm, or tell me what to change.'
+    return `Please confirm your order:\n\n${copy.orderLines(order)}\n${lines.join('\n')}${pinTip}\n\n${ask}`
+  },
+
+  cashNotAvailable(business: string) {
+    return `Sorry, ${business} can only take payment online for this order. Reply YES to get your payment link.`
+  },
+
+  cashConfirmed(order: Order, business: string) {
+    return `Thank you. Order ${orderLabel(order)} is confirmed. ${cashLine(order)} ${business} will let you know when it's on the way.`
   },
 
   recipientPhoneUnreadable(name: string | null) {
@@ -112,6 +140,9 @@ export const copy = {
   },
 
   payLink(order: Order, url: string) {
+    if (order.paymentMethod === 'cash') {
+      return `Thank you. To confirm order ${orderLabel(order)}, pay the ${formatCedis(order.deliveryFeePesewas ?? 0)} delivery fee here with mobile money or card:\n${url}\n\nThen pay ${formatCedis(order.cashDuePesewas ?? 0)} in cash to the rider when your order arrives.`
+    }
     return `Thank you. Your order ${orderLabel(order)} comes to ${formatCedis(order.totalPesewas)}.\n\nPay here with mobile money or card:\n${url}\n\nWe'll start on it as soon as payment comes through.`
   },
 
@@ -120,6 +151,9 @@ export const copy = {
   },
 
   paid(order: Order, business: string) {
+    if (order.paymentMethod === 'cash') {
+      return `Delivery fee received for order ${orderLabel(order)}. Thank you. ${cashLine(order)} ${business} will let you know when it's on the way.`
+    }
     return `Payment received for order ${orderLabel(order)}. Thank you. ${business} will let you know when it's on the way.`
   },
 
@@ -138,7 +172,8 @@ export const copy = {
   // Delivery
 
   deliveryPin(business: string, order: Order, riderName: string, pin: string) {
-    return `Your order ${orderLabel(order)} from ${business} is on the way with ${riderName}.\n\nYour delivery code is ${pin}. Give it to the rider only when you have your order.`
+    const cash = cashLine(order)
+    return `Your order ${orderLabel(order)} from ${business} is on the way with ${riderName}.${cash ? ` ${cash}` : ''}\n\nYour delivery code is ${pin}. Give it to the rider only when you have your order.`
   },
 
   /** SMS to the person receiving an order someone else placed. */
@@ -161,7 +196,21 @@ export const copy = {
       : `${business} has cancelled order ${orderLabel(order)}.`
   },
 
-  riderJob(business: string, order: Order, customer: string, link: string) {
+  riderJob(business: string, order: Order, customer: string, link: string, riderFee?: { pesewas: number; fromCash: boolean }) {
+    const money = [
+      order.paymentMethod === 'cash' && order.cashDuePesewas ? `Collect ${formatCedis(order.cashDuePesewas)} in cash.` : '',
+      riderFee && riderFee.pesewas > 0
+        ? riderFee.fromCash
+          ? `Your fee: ${formatCedis(riderFee.pesewas)}, kept from the cash. Give ${formatCedis((order.cashDuePesewas ?? 0) - riderFee.pesewas)} to ${business}.`
+          : `Your fee: ${formatCedis(riderFee.pesewas)}, paid by ${business}.`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+    return copy.riderJobBase(business, order, customer, link) + (money ? `\n\n${money}` : '')
+  },
+
+  riderJobBase(business: string, order: Order, customer: string, link: string) {
     const receiver = receiverLabel(order)
     const who = receiver ? `Deliver to: ${receiver}\nOrdered by: ${customer}` : `Customer: ${customer}`
     const digital = order.digitalAddress ? `\nDigital address: ${order.digitalAddress}` : ''

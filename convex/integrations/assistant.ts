@@ -33,6 +33,10 @@ export const Extraction = z.object({
     .boolean()
     .nullable()
     .describe('Only when this message gives an address and the business lists delivery areas: true if the address is clearly outside them, false if inside or unsure. Else null.'),
+  pay_with: z
+    .enum(['online', 'cash'])
+    .nullable()
+    .describe('cash if the customer wants to pay the rider in cash on delivery; online if they say they will pay now by MoMo or card; else null.'),
   unmatched: z.array(z.string()).describe('Things the customer asked for that are not in the product list.'),
   reply: z
     .string()
@@ -64,6 +68,7 @@ Customers write in English, Ghanaian Pidgin, Twi, or a mix, often with typos and
 - "Make am 3" right after they ordered jollof → order: jollof quantity 3.
 - "Deliver to Madina, near the zongo junction" → order with address set, basket unchanged (items null).
 - "Yes", "Yes please", "Ok go ahead", "Aane", "Confirm" while a confirmation is pending → confirm.
+- "Cash", "I go pay cash", "Pay on delivery", "I'll pay the rider" while a confirmation is pending → confirm with pay_with "cash".
 - "Cancel", "I no want again", "Mempɛ bio" → cancel.
 - "How much be the fried rice?", "Do you deliver to Kasoa?" → question.
 - "Hello", "Good morning" → greeting.
@@ -133,6 +138,7 @@ export function sanitize(raw: Extraction, productIds: ReadonlySet<string>): Extr
     recipient_name: clean(raw.recipient_name, 80),
     recipient_phone: clean(raw.recipient_phone, 30),
     outside_delivery_area: typeof raw.outside_delivery_area === 'boolean' ? raw.outside_delivery_area : null,
+    pay_with: raw.pay_with === 'cash' || raw.pay_with === 'online' ? raw.pay_with : null,
     unmatched: raw.unmatched.map((u) => u.trim()).filter(Boolean).slice(0, 10),
     reply: clean(raw.reply, 600),
     confidence: Math.min(1, Math.max(0, Number.isFinite(raw.confidence) ? raw.confidence : 0)),

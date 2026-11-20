@@ -16,7 +16,7 @@ const CUSTOMER = '+233201112222'
 const RIDER = '+233271234567'
 
 function answer(partial: Partial<Extraction>): Extraction {
-  return { intent: 'order', items: null, address: null, customer_name: null, recipient_name: null, recipient_phone: null, outside_delivery_area: null, unmatched: [], reply: null, confidence: 0.95, ...partial }
+  return { intent: 'order', items: null, address: null, customer_name: null, recipient_name: null, recipient_phone: null, outside_delivery_area: null, pay_with: null, unmatched: [], reply: null, confidence: 0.95, ...partial }
 }
 
 let messageCounter = 0
@@ -485,5 +485,127 @@ describe('checking the address', () => {
     await whatsappWebhook(t, 'One jollof to Takoradi')
     await settle(t)
     expect((await order()).outsideDeliveryArea).toBeUndefined()
+  })
+})
+
+describe('delivery fees and cash on delivery', () => {
+  /** Orders 2 jollof (GH₵ 130) to Madina and returns the order once Stallo has sent the summary. */
+  async function orderTwo(w: Awaited<ReturnType<typeof world>>) {
+    w.answers.push(answer({ items: [{ product_id: w.productId, quantity: 2 }], address: 'Madina' }))
+    await whatsappWebhook(w.t, '2 jollof to Madina')
+    await settle(w.t)
+    return w.order()
+  }
+  const initialized = (calls: { url: string; body: unknown }[]) =>
+    calls.filter((c) => c.url.includes('/transaction/initialize')).map((c) => c.body as { amount: string; transaction_charge: number })
+  const balance = (w: Awaited<ReturnType<typeof world>>) => w.t.run(async (ctx) => (await ctx.db.get(w.sellerId))!.feeBalancePesewas ?? 0)
+  const riderToken = async (w: Awaited<ReturnType<typeof world>>) =>
+    /\/r\/([0-9a-f]{64})/.exec((await w.sent()).find((m) => m.recipient === RIDER)!.text!)![1]
+
+  it('adds the delivery fee to the total but takes Stallo’s fee from the goods only', async () => {
+    const w = await world()
+    await w.t.run((ctx) => ctx.db.patch(w.sellerId, { deliveryFeePesewas: 2000 }))
+    const o = await orderTwo(w)
+    expect(o).toMatchObject({ subtotalPesewas: 13000, deliveryFeePesewas: 2000, totalPesewas: 15000 })
+    const summary = (await w.sent()).find((m) => m.text?.includes('Please confirm'))!.text!
+    expect(summary).toContain('Delivery — GH₵ 20.00')
+    expect(summary).toContain('Total: GH₵ 150.00')
+    expect(summary).not.toContain('CASH') // the seller doesn't take cash
+
+    w.answers.push(answer({ intent: 'confirm' }))
+    await whatsappWebhook(w.t, 'Yes')
+    await settle(w.t)
+    expect(initialized(w.calls)).toEqual([expect.objectContaining({ amount: '15000', transaction_charge: 260 })]) // 2% of 130
+  })
+
+  it('takes the goods in cash and the delivery fee online', async () => {
+    const w = await world()
+    await w.t.run((ctx) => ctx.db.patch(w.sellerId, { deliveryFeePesewas: 2000, acceptsCash: true }))
+    await orderTwo(w)
+    expect((await w.sent()).find((m) => m.text?.includes('Please confirm'))!.text).toContain('or CASH to pay the rider')
+
+    await whatsappWebhook(w.t, 'Cash')
+    await settle(w.t)
+    let o = await w.order()
+    expect(o).toMatchObject({ status: 'awaiting_payment', paymentMethod: 'cash', cashDuePesewas: 13000, cashStatus: 'due', feePesewas: 260 })
+    expect(initialized(w.calls)).toEqual([expect.objectContaining({ amount: '2000', transaction_charge: 260 })])
+    expect((await w.sent()).some((m) => m.text?.includes('pay the GH₵ 20.00 delivery fee here'))).toBe(true)
+
+    const payment = await w.t.run(async (ctx) => (await ctx.db.query('payments').first())!)
+    await paystackWebhook(w.t, 'charge.success', { reference: payment.reference })
+    await settle(w.t)
+    o = await w.order()
+    expect(o).toMatchObject({ status: 'paid', paymentStatus: 'paid' })
+    expect(await balance(w)).toBe(-260) // collected early; earned once the cash is taken
+
+    // The rider keeps GH₵ 15 from the cash.
+    await w.ama.action(api.deliveries.dispatch, { orderId: o._id, riderName: 'Yaw', riderPhone: '027 123 4567', riderFeePesewas: 1500, riderFeeFromCash: true })
+    await settle(w.t)
+    const riderText = (await w.sent()).find((m) => m.recipient === RIDER)!.text!
+    expect(riderText).toContain('Collect GH₵ 130.00 in cash.')
+    expect(riderText).toContain('Give GH₵ 115.00 to')
+    const pin = /delivery code is (\d{4})/.exec((await w.sent()).find((m) => m.recipient === CUSTOMER && m.text?.includes('delivery code'))!.text!)![1]
+    const token = await riderToken(w)
+    expect(await w.t.query(api.deliveries.riderJob, { token })).toMatchObject({ cashToCollectPesewas: 13000, riderFeePesewas: 1500, riderFeeFromCash: true })
+
+    // No code accepted until the rider says the cash is collected.
+    expect(await w.t.mutation(api.deliveries.riderConfirm, { token, pin })).toMatchObject({ ok: false })
+    expect((await w.order()).status).toBe('dispatched')
+    expect(await w.t.mutation(api.deliveries.riderConfirm, { token, pin, cashCollected: true })).toMatchObject({ ok: true })
+    o = await w.order()
+    expect(o).toMatchObject({ status: 'delivered', cashStatus: 'with_rider' })
+    expect(await balance(w)).toBe(0)
+
+    await w.ama.mutation(api.deliveries.markCashReceived, { orderId: o._id })
+    expect((await w.order()).cashStatus).toBe('received')
+  })
+
+  it('confirms a cash order straight away when there is nothing to pay online, and recovers the fee later', async () => {
+    const w = await world()
+    await w.t.run((ctx) => ctx.db.patch(w.sellerId, { acceptsCash: true }))
+    await orderTwo(w)
+    await whatsappWebhook(w.t, 'cash on delivery')
+    await settle(w.t)
+    let o = await w.order()
+    expect(o).toMatchObject({ status: 'paid', paymentStatus: 'none', paymentMethod: 'cash', cashDuePesewas: 13000 })
+    expect(initialized(w.calls)).toEqual([])
+    expect((await w.t.run((ctx) => ctx.db.get(w.productId)))!.stock).toBe(3)
+    expect((await w.sent()).some((m) => m.text?.includes('Please have GH₵ 130.00 ready in cash'))).toBe(true)
+
+    await w.ama.action(api.deliveries.dispatch, { orderId: o._id, riderName: 'Yaw', riderPhone: '027 123 4567' })
+    await settle(w.t)
+    const pin = /delivery code is (\d{4})/.exec((await w.sent()).find((m) => m.recipient === CUSTOMER && m.text?.includes('delivery code'))!.text!)![1]
+    await w.t.mutation(api.deliveries.riderConfirm, { token: await riderToken(w), pin, cashCollected: true })
+    expect(await balance(w)).toBe(260) // owed from the cash sale
+
+    // The next online order pays its own fee plus what's owed.
+    await w.t.run(async (ctx) => {
+      const conversation = (await ctx.db.query('conversations').first())!
+      await ctx.db.patch(conversation._id, { draftOrderId: undefined, state: 'idle' })
+      await ctx.db.patch(w.sellerId, { acceptsCash: false })
+    })
+    w.answers.push(answer({ items: [{ product_id: w.productId, quantity: 1 }], address: 'Madina' }), answer({ intent: 'confirm' }))
+    await whatsappWebhook(w.t, 'One more jollof to Madina')
+    await settle(w.t)
+    await whatsappWebhook(w.t, 'Yes')
+    await settle(w.t)
+    expect(initialized(w.calls)).toEqual([expect.objectContaining({ amount: '6500', transaction_charge: 130 + 260 })])
+    const payment = await w.t.run(async (ctx) => (await ctx.db.query('payments').first())!)
+    await paystackWebhook(w.t, 'charge.success', { reference: payment.reference })
+    await settle(w.t)
+    o = await w.t.run(async (ctx) => (await ctx.db.get(payment.orderId))!)
+    expect(o.status).toBe('paid')
+    expect(await balance(w)).toBe(0)
+  })
+
+  it('does not offer cash while the seller owes too much', async () => {
+    const w = await world()
+    await w.t.run((ctx) => ctx.db.patch(w.sellerId, { acceptsCash: true, feeBalancePesewas: 6000 }))
+    await orderTwo(w)
+    expect((await w.sent()).find((m) => m.text?.includes('Please confirm'))!.text).not.toContain('CASH')
+    await whatsappWebhook(w.t, 'Cash')
+    await settle(w.t)
+    expect((await w.order()).status).toBe('awaiting_confirmation')
+    expect((await w.sent()).some((m) => m.text?.includes('can only take payment online'))).toBe(true)
   })
 })

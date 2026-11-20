@@ -11,6 +11,7 @@ export function CodeInput({
   disabled,
   length = 6,
   autoFocus = true,
+  size = 'default',
 }: {
   value: string
   onChange: (value: string) => void
@@ -19,6 +20,8 @@ export function CodeInput({
   disabled?: boolean
   length?: number
   autoFocus?: boolean
+  /** large: bigger boxes for people entering a code on the move (riders). */
+  size?: 'default' | 'large'
 }) {
   return (
     <OTPInput
@@ -32,7 +35,7 @@ export function CodeInput({
       inputMode="numeric"
       autoComplete={length === 6 ? 'one-time-code' : 'off'}
       aria-label={`${length}-digit code`}
-      containerClassName={styles.container}
+      containerClassName={cx(styles.container, size === 'large' && styles.large)}
       render={({ slots }) => (
         <>
           {slots.map((slot, i) => (

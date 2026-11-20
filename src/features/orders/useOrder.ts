@@ -12,6 +12,7 @@ export function useOrder(orderId: Id<'orders'>) {
     dispatch: useAction(api.deliveries.dispatch),
     markFailed: useMutation(api.deliveries.markFailed),
     markReturned: useMutation(api.deliveries.markReturned),
+    markCashReceived: useMutation(api.deliveries.markCashReceived),
     cancel: useAction(api.payments.cancelOrder),
     refund: useAction(api.payments.refundOrder),
     resendLink: useAction(api.payments.resendLink),

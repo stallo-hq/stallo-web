@@ -8,7 +8,9 @@ import { Button } from '../../components/ui/Button'
 import { CodeInput } from '../../components/ui/CodeInput'
 import { Field } from '../../components/ui/Field'
 import { PageSpinner } from '../../components/ui/Spinner'
+import { Switch } from '../../components/ui/Switch'
 import { errorMessage } from '../../lib/errors'
+import { formatCedis } from '../../lib/money'
 import { formatGhanaPhone } from '../../lib/phone'
 import styles from './RiderPage.module.css'
 
@@ -26,6 +28,7 @@ export function RiderPage() {
   const [busy, setBusy] = useState(false)
   const [failing, setFailing] = useState(false)
   const [reason, setReason] = useState('')
+  const [cashCollected, setCashCollected] = useState(false)
 
   if (job === undefined) return <PageSpinner />
 
@@ -42,11 +45,16 @@ export function RiderPage() {
   }
 
   async function submitPin(code: string) {
-    if (code.length !== 4 || busy) return
+    if (code.length !== 4 || busy || job === null || job === undefined) return
+    const cashDue = job.cashToCollectPesewas > 0
+    if (cashDue && !cashCollected) {
+      setMessage({ text: `Collect ${formatCedis(job.cashToCollectPesewas)} in cash first, then tick the box.`, tone: 'error' })
+      return
+    }
     setBusy(true)
     setMessage(null)
     try {
-      const result = await confirm({ token, pin: code })
+      const result = await confirm({ token, pin: code, ...(cashDue ? { cashCollected: true } : {}) })
       setMessage({ text: result.message, tone: result.ok ? 'ok' : 'error' })
       if (!result.ok) setPin('')
     } catch (err) {
@@ -143,11 +151,38 @@ export function RiderPage() {
         </div>
       </section>
 
+      {(job.cashToCollectPesewas > 0 || job.riderFeePesewas !== undefined) && (
+        <section className={styles.card}>
+          {job.cashToCollectPesewas > 0 && (
+            <>
+              <h2>Collect cash</h2>
+              <p className={styles.amount}>{formatCedis(job.cashToCollectPesewas)}</p>
+              <p className={styles.muted}>The customer pays this in cash when you hand over the order.</p>
+            </>
+          )}
+          {job.riderFeePesewas !== undefined && (
+            <p>
+              Your fee: <strong>{formatCedis(job.riderFeePesewas)}</strong>
+              {job.riderFeeFromCash
+                ? `, kept from the cash. Give ${formatCedis(job.cashToCollectPesewas - job.riderFeePesewas)} to ${job.businessName}.`
+                : `, paid by ${job.businessName}.`}
+            </p>
+          )}
+        </section>
+      )}
+
       <section className={styles.card}>
         <h2>Confirm delivery</h2>
         <p>When you hand over the order, ask for the 4-digit delivery code and enter it here.</p>
+        {job.cashToCollectPesewas > 0 && (
+          <Switch
+            label={`I collected ${formatCedis(job.cashToCollectPesewas)} in cash`}
+            checked={cashCollected}
+            onCheckedChange={setCashCollected}
+          />
+        )}
         <div className={styles.pin}>
-          <CodeInput length={4} value={pin} onChange={setPin} onComplete={(c) => void submitPin(c)} autoFocus={false} disabled={busy} invalid={message?.tone === 'error'} />
+          <CodeInput length={4} size="large" value={pin} onChange={setPin} onComplete={(c) => void submitPin(c)} autoFocus={false} disabled={busy} invalid={message?.tone === 'error'} />
         </div>
         {message && (
           <p className={styles.message} data-tone={message.tone} role="status">

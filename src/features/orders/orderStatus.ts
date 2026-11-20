@@ -17,6 +17,20 @@ export const ORDER_STATUS: Record<OrderStatus, { label: string; tone: Tone }> = 
   cancelled: { label: 'Cancelled', tone: 'red' },
 }
 
+/** A cash order that's ready to go hasn't been paid yet: say so. */
+export function orderStatusLabel(status: OrderStatus, paymentMethod?: 'online' | 'cash'): { label: string; tone: Tone } {
+  if (status === 'paid' && paymentMethod === 'cash') return { label: 'Cash · to deliver', tone: 'green' }
+  return ORDER_STATUS[status]
+}
+
+export type CashStatus = NonNullable<Doc<'orders'>['cashStatus']>
+
+export const CASH_STATUS: Record<CashStatus, { label: string; tone: Tone }> = {
+  due: { label: 'Rider collects on delivery', tone: 'amber' },
+  with_rider: { label: 'With the rider', tone: 'blue' },
+  received: { label: 'Received', tone: 'green' },
+}
+
 export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }> = {
   none: { label: 'Not requested', tone: 'gray' },
   pending: { label: 'Pending', tone: 'amber' },

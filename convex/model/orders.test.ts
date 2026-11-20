@@ -19,6 +19,7 @@ const ALLOWED = new Set([
   'draft→cancelled',
   'awaiting_confirmation→draft',
   'awaiting_confirmation→awaiting_payment',
+  'awaiting_confirmation→paid', // cash on delivery with nothing to pay online
   'awaiting_confirmation→cancelled',
   'awaiting_payment→paid',
   'awaiting_payment→cancelled',

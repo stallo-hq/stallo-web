@@ -2,6 +2,8 @@ import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 import {
   attentionType,
+  cashStatus,
+  paymentMethod,
   conversationState,
   deliveryStatus,
   messageChannel,
@@ -63,6 +65,13 @@ export default defineSchema({
     feeFlatPesewas: v.optional(v.number()),
     // Free text, e.g. "Madina, Adenta, Legon, East Legon". Used to flag addresses outside it.
     deliveryAreas: v.optional(v.string()),
+    // Added to every order; paid by the customer. 0 or unset = free delivery.
+    deliveryFeePesewas: v.optional(v.number()),
+    // Customers may choose to pay the rider in cash.
+    acceptsCash: v.optional(v.boolean()),
+    // Stallo fees earned minus fees collected through Paystack. Positive = the seller owes
+    // Stallo (from cash orders); it is taken from later online payments.
+    feeBalancePesewas: v.optional(v.number()),
   })
     .index('by_owner', ['ownerId'])
     .index('by_whatsapp_phone_number_id', ['whatsappPhoneNumberId']),
@@ -149,6 +158,12 @@ export default defineSchema({
     recipientPhone: v.optional(v.string()),
     // The assistant thinks the address is outside the seller's delivery areas.
     outsideDeliveryArea: v.optional(v.boolean()),
+    // Part of totalPesewas; Stallo's fee is on the goods only.
+    deliveryFeePesewas: v.optional(v.number()),
+    paymentMethod: v.optional(paymentMethod),
+    // Cash orders: the goods are paid to the rider; any delivery fee is paid online first.
+    cashDuePesewas: v.optional(v.number()),
+    cashStatus: v.optional(cashStatus),
     deliveryId: v.optional(v.id('deliveries')),
     paymentUrl: v.optional(v.string()),
     note: v.optional(v.string()),
@@ -183,6 +198,9 @@ export default defineSchema({
     status: deliveryStatus,
     notes: v.optional(v.string()),
     dispatchedAt: v.optional(v.number()),
+    // What the seller agreed to pay the rider. Paid in person, or kept from the cash collected.
+    riderFeePesewas: v.optional(v.number()),
+    riderFeeFromCash: v.optional(v.boolean()),
     closedAt: v.optional(v.number()),
   })
     .index('by_order', ['orderId'])

@@ -15,7 +15,8 @@ import { Field, PasswordField } from '../../components/ui/Field'
 import { PageSpinner } from '../../components/ui/Spinner'
 import { useSeller } from '../../hooks/useSeller'
 import { errorMessage } from '../../lib/errors'
-import { formatFee } from '../../lib/money'
+import { Switch } from '../../components/ui/Switch'
+import { formatCedis, formatFee, parseCedis, pesewasToInput } from '../../lib/money'
 import { formatGhanaPhone } from '../../lib/phone'
 import { connectionStatus } from './connectionStatus'
 import styles from './SettingsPage.module.css'
@@ -93,6 +94,66 @@ function DeliveryAreasCard({ areas }: { areas: string }) {
         />
         <div className={styles.formActions}>
           <Button type="submit" variant="dark" loading={busy} disabled={value.trim() === areas}>
+            Save
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
+function DeliveryPaymentCard({ feePesewas, acceptsCash, balancePesewas }: { feePesewas: number; acceptsCash: boolean; balancePesewas: number }) {
+  const { updateDeliveryAndPayment } = useSettingsActions()
+  const [fee, setFee] = useState(feePesewas > 0 ? pesewasToInput(feePesewas) : '')
+  const [cash, setCash] = useState(acceptsCash)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const parsed = fee.trim() === '' ? 0 : parseCedis(fee)
+  const changed = parsed !== feePesewas || cash !== acceptsCash
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (parsed === null) return setError('Enter an amount, for example 20, or leave it empty for free delivery.')
+    setError(null)
+    setBusy(true)
+    try {
+      await updateDeliveryAndPayment({ deliveryFeePesewas: parsed, acceptsCash: cash })
+      toast.success('Delivery and payment saved')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card title="Delivery and payment" description="What customers pay for delivery, and how they can pay.">
+      <form onSubmit={save} noValidate className={styles.form}>
+        <Field
+          label="Delivery fee"
+          prefix="GH₵"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={fee}
+          onChange={(e) => setFee(e.target.value)}
+          error={error ?? undefined}
+          hint="Added to every order. Leave empty for free delivery. Stallo’s fee is never taken from it."
+        />
+        <Switch
+          label="Accept cash on delivery"
+          hint="Customers can choose to pay the rider in cash. If you charge a delivery fee, they pay that online first."
+          checked={cash}
+          onCheckedChange={setCash}
+        />
+        {balancePesewas > 0 && (
+          <p className={styles.note}>
+            Stallo fees from cash orders: {formatCedis(balancePesewas)}. They are taken from your next online payments, never more than half
+            of any one payment.
+          </p>
+        )}
+        <div className={styles.formActions}>
+          <Button type="submit" variant="dark" loading={busy} disabled={!changed}>
             Save
           </Button>
         </div>
@@ -185,6 +246,12 @@ export function SettingsPage() {
       <div className={styles.stack}>
         {/* key: start fresh whenever the saved name changes */}
         <BusinessCard key={seller.businessName} name={seller.businessName} phone={seller.phone} />
+        <DeliveryPaymentCard
+          key={`${seller.deliveryFeePesewas}-${seller.acceptsCash}`}
+          feePesewas={seller.deliveryFeePesewas}
+          acceptsCash={seller.acceptsCash}
+          balancePesewas={seller.feeBalancePesewas}
+        />
         <DeliveryAreasCard key={seller.deliveryAreas ?? ''} areas={seller.deliveryAreas ?? ''} />
 
         <Card title="Connections" description="What Stallo needs to take orders and pay you." flush>

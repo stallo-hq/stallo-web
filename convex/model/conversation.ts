@@ -7,7 +7,8 @@ import { findDigitalAddress } from '../lib/address'
 import { toE164Ghana } from '../lib/phone'
 import { raiseAttention } from './attention'
 import { copy } from './copy'
-import { calculateFee, sellerFeeConfig } from './fees'
+import { calculateFee, cashAllowed, sellerFeeConfig } from './fees'
+import { onlineAmount, startFulfilment } from './fulfilment'
 import { nextOrderNumber, orderLabel, subtotalOf, transition } from './orders'
 import { queueInOrder } from './outbound'
 
@@ -199,6 +200,12 @@ async function handleText(
     }
   }
 
+  // "Cash" in reply to the order summary.
+  if (state.order?.status === 'awaiting_confirmation' && /^\W*(cash|pay (on|at) delivery|cash on delivery)\W*$/i.test(input.text)) {
+    await confirmOrder(ctx, state, 'cash')
+    return
+  }
+
   // We just asked where to deliver: a reply that doesn't change the basket is the address,
   // however unsure the model is about it ("Knust", "Madina zongo junction").
   const order = state.order
@@ -262,7 +269,7 @@ async function handleText(
       return
     }
     case 'confirm': {
-      await confirmOrder(ctx, state)
+      await confirmOrder(ctx, state, extraction.pay_with === 'cash' ? 'cash' : 'online')
       return
     }
     case 'order': {
@@ -347,11 +354,13 @@ async function updateBasket(
   const delivery = deliveryFields(state, previous, change, address, addressChanged)
 
   const subtotal = subtotalOf(items)
+  const deliveryFee = items.length > 0 ? (seller.deliveryFeePesewas ?? 0) : 0
   const fields = {
     items,
     subtotalPesewas: subtotal,
     feePesewas: 0,
-    totalPesewas: subtotal,
+    deliveryFeePesewas: deliveryFee,
+    totalPesewas: subtotal + deliveryFee,
     address,
     ...delivery.fields,
   }
@@ -394,7 +403,7 @@ async function updateBasket(
     state.replies.push(copy.askAddress(order))
   } else {
     if (order.status === 'draft') order = await transition(ctx, order, 'awaiting_confirmation')
-    state.replies.push(copy.confirm(order, usingSavedAddress))
+    state.replies.push(copy.confirm(order, usingSavedAddress, cashAllowed(seller)))
     conversationState = 'awaiting_confirmation'
   }
 
@@ -446,7 +455,7 @@ function deliveryFields(
   return { fields, notes, newlyOutside }
 }
 
-async function confirmOrder(ctx: MutationCtx, state: State) {
+async function confirmOrder(ctx: MutationCtx, state: State, method: 'online' | 'cash') {
   const { seller, customer } = state
   const order = state.order
   if (order?.status === 'awaiting_payment') {
@@ -463,24 +472,46 @@ async function confirmOrder(ctx: MutationCtx, state: State) {
   const stillFine = order.items.every((i) => {
     const p = byId.get(i.productId)
     return p !== undefined && p.active && p.stock >= i.qty && p.pricePesewas === i.unitPricePesewas
-  })
+  }) && (seller.deliveryFeePesewas ?? 0) === (order.deliveryFeePesewas ?? 0)
   if (!stillFine) {
     await updateBasket(ctx, state, { items: null, address: null, unmatched: [] })
     return
   }
 
+  if (method === 'cash' && !cashAllowed(seller)) {
+    state.replies.push(copy.cashNotAvailable(seller.businessName))
+    return
+  }
+
+  // Stallo's fee is on the goods only. Delivery is charged at the seller's current rate.
   const fee = calculateFee(order.subtotalPesewas, sellerFeeConfig(seller))
-  const confirmed = await transition(ctx, order, 'awaiting_payment', {
-    paymentStatus: 'pending',
+  const deliveryFee = seller.deliveryFeePesewas ?? 0
+  const terms = {
     feePesewas: fee,
-    totalPesewas: order.subtotalPesewas,
-    note: 'Confirmed by the customer',
-  })
-  if (confirmed.address) await ctx.db.patch(customer._id, { lastAddress: confirmed.address })
+    deliveryFeePesewas: deliveryFee,
+    totalPesewas: order.subtotalPesewas + deliveryFee,
+    paymentMethod: method,
+    ...(method === 'cash' ? { cashDuePesewas: order.subtotalPesewas, cashStatus: 'due' as const } : {}),
+  }
+  if (order.address) await ctx.db.patch(customer._id, { lastAddress: order.address })
   await ctx.db.patch(state.conversation._id, { state: 'idle' })
-  state.order = confirmed
+
+  if (onlineAmount(terms) === 0) {
+    // Cash on delivery with nothing to pay now: ready to prepare straight away.
+    const ready = await transition(ctx, order, 'paid', { ...terms, note: 'Confirmed: cash on delivery' })
+    state.order = ready
+    await startFulfilment(ctx, ready, seller, customer)
+    return
+  }
+
+  const awaiting = await transition(ctx, order, 'awaiting_payment', {
+    ...terms,
+    paymentStatus: 'pending',
+    note: method === 'cash' ? 'Confirmed: delivery fee online, goods in cash' : 'Confirmed by the customer',
+  })
+  state.order = awaiting
   // The payment-link message is sent once Paystack gives us the link.
-  await ctx.scheduler.runAfter(0, internal.payments.createLink, { orderId: confirmed._id })
+  await ctx.scheduler.runAfter(0, internal.payments.createLink, { orderId: awaiting._id })
 }
 
 async function finish(ctx: MutationCtx, state: State, inboundText: string) {

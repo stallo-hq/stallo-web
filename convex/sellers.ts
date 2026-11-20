@@ -10,6 +10,9 @@ const sellerView = v.object({
   businessName: v.string(),
   phone: v.string(),
   deliveryAreas: v.optional(v.string()),
+  deliveryFeePesewas: v.number(),
+  acceptsCash: v.boolean(),
+  feeBalancePesewas: v.number(),
   whatsappConnected: v.boolean(),
   whatsappDisplayPhone: v.optional(v.string()),
   payoutsConnected: v.boolean(),
@@ -30,6 +33,9 @@ export const mine = query({
       businessName: seller.businessName,
       phone: seller.phone,
       deliveryAreas: seller.deliveryAreas,
+      deliveryFeePesewas: seller.deliveryFeePesewas ?? 0,
+      acceptsCash: seller.acceptsCash === true,
+      feeBalancePesewas: seller.feeBalancePesewas ?? 0,
       whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
       whatsappDisplayPhone: seller.whatsappDisplayPhone,
       payoutsConnected: seller.paystackSubaccountCode !== undefined,
@@ -86,6 +92,22 @@ export const updateDeliveryAreas = mutation({
     const seller = await requireSeller(ctx)
     const deliveryAreas = cleanText(args.deliveryAreas, 'Delivery areas', LIMITS.deliveryAreas)
     await ctx.db.patch(seller._id, { deliveryAreas: deliveryAreas || undefined })
+    return null
+  },
+})
+
+const MAX_DELIVERY_FEE_PESEWAS = 100_000 // GH₵ 1,000
+
+/** Delivery fee added to every order, and whether customers may pay the rider in cash. */
+export const updateDeliveryAndPayment = mutation({
+  args: { deliveryFeePesewas: v.number(), acceptsCash: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { deliveryFeePesewas, acceptsCash }) => {
+    const seller = await requireSeller(ctx)
+    if (!Number.isInteger(deliveryFeePesewas) || deliveryFeePesewas < 0 || deliveryFeePesewas > MAX_DELIVERY_FEE_PESEWAS) {
+      throw new ConvexError('Enter a delivery fee from 0 to 1,000 cedis.')
+    }
+    await ctx.db.patch(seller._id, { deliveryFeePesewas, acceptsCash })
     return null
   },
 })

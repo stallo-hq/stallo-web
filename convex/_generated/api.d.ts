@@ -34,6 +34,7 @@ import type * as model_copy from "../model/copy.js";
 import type * as model_crypto from "../model/crypto.js";
 import type * as model_delivery from "../model/delivery.js";
 import type * as model_fees from "../model/fees.js";
+import type * as model_fulfilment from "../model/fulfilment.js";
 import type * as model_orders from "../model/orders.js";
 import type * as model_outbound from "../model/outbound.js";
 import type * as model_stats from "../model/stats.js";
@@ -88,6 +89,7 @@ declare const fullApi: ApiFromModules<{
   "model/crypto": typeof model_crypto;
   "model/delivery": typeof model_delivery;
   "model/fees": typeof model_fees;
+  "model/fulfilment": typeof model_fulfilment;
   "model/orders": typeof model_orders;
   "model/outbound": typeof model_outbound;
   "model/stats": typeof model_stats;

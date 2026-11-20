@@ -3,6 +3,7 @@ import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
 import { action, internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server'
 import { mapsUrl } from './lib/address'
+import { formatCedis } from './lib/money'
 import { toE164Ghana } from './lib/phone'
 import { assertOwned, requireSeller } from './model/auth'
 import { copy, receiverLabel } from './model/copy'
@@ -47,8 +48,14 @@ function riderLink(token: string): string {
  * and a private page link for the rider. Secrets are generated here, in an
  * action, then stored hashed.
  */
+const riderFeeArgs = {
+  // What the seller agreed to pay the rider (optional), and whether the rider keeps it from the cash.
+  riderFeePesewas: v.optional(v.number()),
+  riderFeeFromCash: v.optional(v.boolean()),
+}
+
 export const dispatch = action({
-  args: { orderId: v.id('orders'), riderName: v.string(), riderPhone: v.string() },
+  args: { orderId: v.id('orders'), riderName: v.string(), riderPhone: v.string(), ...riderFeeArgs },
   returns: v.object({ riderLink: v.string() }),
   handler: async (ctx, args): Promise<{ riderLink: string }> => {
     const pin = randomDigits(PIN_LENGTH)
@@ -70,6 +77,7 @@ export const applyDispatch = internalMutation({
     orderId: v.id('orders'),
     riderName: v.string(),
     riderPhone: v.string(),
+    ...riderFeeArgs,
     pin: v.string(),
     pinHash: v.string(),
     token: v.string(),
@@ -86,6 +94,7 @@ export const applyDispatch = internalMutation({
     const riderPhone = toE164Ghana(args.riderPhone)
     if (riderPhone === null) throw new ConvexError('Enter the rider’s Ghana mobile number, e.g. 024 123 4567.')
     const customer = (await ctx.db.get(order.customerId))!
+    const riderFee = checkRiderFee(order, args.riderFeePesewas, args.riderFeeFromCash)
 
     const deliveryId = await ctx.db.insert('deliveries', {
       orderId: order._id,
@@ -97,6 +106,7 @@ export const applyDispatch = internalMutation({
       attempts: 0,
       status: 'dispatched',
       dispatchedAt: Date.now(),
+      ...(riderFee ? { riderFeePesewas: riderFee.pesewas, riderFeeFromCash: riderFee.fromCash } : {}),
     })
     const dispatched = await transition(ctx, order, 'dispatched', { deliveryId, note: `With ${riderName}` })
 
@@ -109,7 +119,7 @@ export const applyDispatch = internalMutation({
       sellerId: seller._id,
       to: riderPhone,
       orderId: order._id,
-      text: copy.riderJob(seller.businessName, dispatched, customerLabel, link),
+      text: copy.riderJob(seller.businessName, dispatched, customerLabel, link, riderFee ?? undefined),
       template: {
         name: 'stallo_rider_job',
         params: [seller.businessName, orderLabel(order), who, order.address ?? 'Call the customer', link],
@@ -118,6 +128,18 @@ export const applyDispatch = internalMutation({
     return null
   },
 })
+
+const MAX_RIDER_FEE_PESEWAS = 100_000 // GH₵ 1,000
+
+function checkRiderFee(order: Doc<'orders'>, pesewas: number | undefined, fromCash: boolean | undefined) {
+  if (pesewas === undefined || pesewas === 0) return null
+  if (!Number.isInteger(pesewas) || pesewas < 0 || pesewas > MAX_RIDER_FEE_PESEWAS) {
+    throw new ConvexError('Enter the rider’s fee in cedis, for example 15.')
+  }
+  const cash = order.paymentMethod === 'cash' ? (order.cashDuePesewas ?? 0) : 0
+  if (fromCash && pesewas > cash) throw new ConvexError('The rider can only keep their fee from cash they collect on this order.')
+  return { pesewas, fromCash: fromCash === true && cash > 0 }
+}
 
 async function currentDelivery(ctx: Parameters<typeof requireSeller>[0], order: Doc<'orders'>) {
   return order.deliveryId ? await ctx.db.get(order.deliveryId) : null
@@ -174,6 +196,9 @@ export const riderJob = query({
       hasPin: v.boolean(),
       mapsUrl: v.optional(v.string()),
       riderName: v.string(),
+      cashToCollectPesewas: v.number(),
+      riderFeePesewas: v.optional(v.number()),
+      riderFeeFromCash: v.boolean(),
       status: v.union(v.literal('dispatched'), v.literal('delivered'), v.literal('failed'), v.literal('returned')),
       attemptsLeft: v.number(),
     }),
@@ -207,6 +232,9 @@ export const riderJob = query({
       hasPin: open && order.location !== undefined,
       mapsUrl: open ? mapsUrl(order) : undefined,
       riderName: delivery.riderName,
+      cashToCollectPesewas: order.paymentMethod === 'cash' ? (order.cashDuePesewas ?? 0) : 0,
+      riderFeePesewas: delivery.riderFeePesewas,
+      riderFeeFromCash: delivery.riderFeeFromCash === true,
       status: delivery.status,
       attemptsLeft: Math.max(0, MAX_PIN_ATTEMPTS - delivery.attempts),
     }
@@ -225,10 +253,18 @@ async function deliveryForToken(ctx: Parameters<typeof requireSeller>[0], token:
 }
 
 export const riderConfirm = mutation({
-  args: { token: v.string(), pin: v.string() },
+  args: { token: v.string(), pin: v.string(), cashCollected: v.optional(v.boolean()) },
   returns: v.object({ ok: v.boolean(), attemptsLeft: v.number(), message: v.string() }),
-  handler: async (ctx, { token, pin }) => {
+  handler: async (ctx, { token, pin, cashCollected }) => {
     const delivery = await deliveryForToken(ctx, token)
+    const order = await ctx.db.get(delivery.orderId)
+    if (order?.paymentMethod === 'cash' && delivery.status === 'dispatched' && cashCollected !== true) {
+      return {
+        ok: false,
+        attemptsLeft: MAX_PIN_ATTEMPTS - delivery.attempts,
+        message: `Collect ${formatCedis(order.cashDuePesewas ?? 0)} in cash first, then tick the box.`,
+      }
+    }
     const clean = pin.replace(/\D/g, '')
     if (clean.length !== PIN_LENGTH) {
       return { ok: false, attemptsLeft: MAX_PIN_ATTEMPTS - delivery.attempts, message: `Enter the ${PIN_LENGTH}-digit code from the customer.` }
@@ -288,6 +324,24 @@ export const applyNewPin = internalMutation({
     const customer = (await ctx.db.get(order.customerId))!
     await ctx.db.patch(deliveryId, { pinHash, attempts: 0 })
     await sendDeliveryCode(ctx, { seller, order, customer, riderName: delivery.riderName, pin })
+    return null
+  },
+})
+
+/** Seller: the rider has handed over the cash for a delivered cash order. */
+export const markCashReceived = mutation({
+  args: { orderId: v.id('orders') },
+  returns: v.null(),
+  handler: async (ctx, { orderId }) => {
+    const seller = await requireSeller(ctx)
+    const order = assertOwned(await ctx.db.get(orderId), seller, 'Order')
+    if (order.paymentMethod !== 'cash' || order.cashStatus !== 'with_rider') {
+      throw new ConvexError('This order has no cash waiting with a rider.')
+    }
+    await ctx.db.patch(orderId, {
+      cashStatus: 'received',
+      timeline: [...order.timeline, { status: order.status, at: Date.now(), note: `Cash received from the rider (${formatCedis(order.cashDuePesewas ?? 0)})` }],
+    })
     return null
   },
 })

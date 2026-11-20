@@ -16,7 +16,9 @@ import { assertOwned, requireSeller } from './model/auth'
 import { copy } from './model/copy'
 import { randomDigits } from './model/crypto'
 import { restock } from './model/delivery'
-import { itemsSummary, orderLabel, setPaymentStatus, transition } from './model/orders'
+import { adjustFeeBalance, onlineAmount, startFulfilment } from './model/fulfilment'
+import { plannedCharge } from './model/fees'
+import { orderLabel, setPaymentStatus, transition } from './model/orders'
 import { queueMessage } from './model/outbound'
 
 // ---------------------------------------------------------------------------
@@ -30,14 +32,17 @@ export const linkContext = internalQuery({
     const seller = await ctx.db.get(order.sellerId)
     const customer = await ctx.db.get(order.customerId)
     if (!seller || !customer) return null
-    return { order, subaccount: seller.paystackSubaccountCode ?? null, customerPhone: customer.phone }
+    const amountPesewas = onlineAmount(order)
+    // Online orders pay their fee now; cash orders pay it from the delivery fee where they can.
+    const chargePesewas = plannedCharge(amountPesewas, order.feePesewas, seller.feeBalancePesewas ?? 0)
+    return { order, amountPesewas, chargePesewas, subaccount: seller.paystackSubaccountCode ?? null, customerPhone: customer.phone }
   },
 })
 
 export const linkCreated = internalMutation({
-  args: { orderId: v.id('orders'), reference: v.string(), url: v.string() },
+  args: { orderId: v.id('orders'), reference: v.string(), url: v.string(), amountPesewas: v.number(), chargePesewas: v.number() },
   returns: v.null(),
-  handler: async (ctx, { orderId, reference, url }) => {
+  handler: async (ctx, { orderId, reference, url, amountPesewas, chargePesewas }) => {
     const order = await ctx.db.get(orderId)
     if (!order || order.status !== 'awaiting_payment') return null
     const seller = (await ctx.db.get(order.sellerId))!
@@ -46,8 +51,9 @@ export const linkCreated = internalMutation({
       orderId,
       sellerId: order.sellerId,
       reference,
-      amountPesewas: order.totalPesewas,
-      feePesewas: order.feePesewas,
+      amountPesewas,
+      // Stallo's part of this payment (Paystack transaction_charge).
+      feePesewas: chargePesewas,
       status: 'pending',
     })
     await ctx.db.patch(orderId, { paymentUrl: url })
@@ -102,14 +108,20 @@ export const createLink = internalAction({
     const reference = `STL-${c.order.number ?? 'X'}-${randomDigits(8)}`
     try {
       const result = await initializePayment({
-        amountPesewas: c.order.totalPesewas,
-        feePesewas: c.order.feePesewas,
+        amountPesewas: c.amountPesewas,
+        feePesewas: c.chargePesewas,
         email: await customerEmail(c.customerPhone),
         reference,
         subaccount: c.subaccount,
         metadata: { orderId, sellerId: c.order.sellerId },
       })
-      await ctx.runMutation(internal.payments.linkCreated, { orderId, reference, url: result.authorization_url })
+      await ctx.runMutation(internal.payments.linkCreated, {
+        orderId,
+        reference,
+        url: result.authorization_url,
+        amountPesewas: c.amountPesewas,
+        chargePesewas: c.chargePesewas,
+      })
     } catch (error) {
       if (error instanceof PaystackError && error.retryable && attempt < 3) {
         await ctx.scheduler.runAfter(5000 * 2 ** attempt, internal.payments.createLink, { orderId, attempt: attempt + 1 })
@@ -206,35 +218,15 @@ export const markPaid = internalMutation({
       return null
     }
 
-    const paid = await transition(ctx, order, 'paid', { paymentStatus: 'paid', note: `Paid ${formatCedis(payment.amountPesewas)}` })
-
-    // Take the items out of stock.
-    const short: string[] = []
-    for (const item of order.items) {
-      const product = await ctx.db.get(item.productId)
-      if (!product) continue
-      if (product.stock < item.qty) short.push(product.name)
-      await ctx.db.patch(product._id, { stock: Math.max(0, product.stock - item.qty) })
-    }
-    if (short.length > 0) {
-      await raiseAttention(ctx, {
-        sellerId: seller._id,
-        type: 'stock_problem',
-        orderId: order._id,
-        summary: `Order ${orderLabel(order)} is paid, but stock shows too few of: ${short.join(', ')}. Check before dispatching.`,
-      })
-    }
-
-    await queueMessage(ctx, { sellerId: seller._id, to: customer.phone, orderId: order._id, text: copy.paid(paid, seller.businessName) })
-    await queueMessage(ctx, {
-      sellerId: seller._id,
-      to: seller.phone,
-      orderId: order._id,
-      template: {
-        name: 'stallo_seller_order_paid',
-        params: [orderLabel(order), itemsSummary(order.items), formatCedis(order.totalPesewas)],
-      },
+    const cash = order.paymentMethod === 'cash'
+    const paid = await transition(ctx, order, 'paid', {
+      paymentStatus: 'paid',
+      note: cash ? `Delivery fee paid (${formatCedis(payment.amountPesewas)}); goods in cash` : `Paid ${formatCedis(payment.amountPesewas)}`,
     })
+    // Stallo's part of this payment settles this order's fee (online) and any fees owed from cash orders.
+    // For cash orders the fee itself is added when the rider collects the cash.
+    await adjustFeeBalance(ctx, seller, (cash ? 0 : order.feePesewas) - (payment.feePesewas ?? 0))
+    await startFulfilment(ctx, paid, seller, customer)
     return null
   },
 })

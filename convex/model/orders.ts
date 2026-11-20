@@ -21,7 +21,8 @@ export const ACTIVE_STATUSES: ReadonlySet<OrderStatus> = new Set([
  */
 export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatus[]>> = {
   draft: ['awaiting_confirmation', 'cancelled'],
-  awaiting_confirmation: ['draft', 'awaiting_payment', 'cancelled'],
+  // Straight to paid only for cash on delivery with nothing to pay online.
+  awaiting_confirmation: ['draft', 'awaiting_payment', 'paid', 'cancelled'],
   awaiting_payment: ['paid', 'cancelled'],
   paid: ['dispatched', 'cancelled'],
   dispatched: ['delivered', 'delivery_failed'],

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { calculateFee, feeConfig, sellerFeeConfig } from './fees'
+import { calculateFee, cashAllowed, feeConfig, plannedCharge, sellerFeeConfig } from './fees'
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -32,5 +32,43 @@ describe('fees', () => {
     expect(feeConfig()).toEqual({ percent: 0, flatPesewas: 0 })
     vi.stubEnv('PLATFORM_FEE_PERCENT', '-1')
     expect(() => feeConfig()).toThrow()
+  })
+})
+
+describe('fee cap', () => {
+  it('never takes more than the cap per order', () => {
+    expect(calculateFee(200_000, { percent: 1.5, flatPesewas: 0, capPesewas: 1500 })).toBe(1500) // 1.5% of 2,000 = 30, capped at 15
+    expect(calculateFee(50_000, { percent: 1.5, flatPesewas: 0, capPesewas: 1500 })).toBe(750)
+  })
+
+  it('reads the cap from the environment', () => {
+    vi.stubEnv('PLATFORM_FEE_PERCENT', '1.5')
+    vi.stubEnv('PLATFORM_FEE_CAP_PESEWAS', '1500')
+    expect(feeConfig()).toMatchObject({ percent: 1.5, capPesewas: 1500 })
+    vi.stubEnv('PLATFORM_FEE_CAP_PESEWAS', '')
+    expect(feeConfig().capPesewas).toBeUndefined()
+    vi.unstubAllEnvs()
+  })
+})
+
+describe('plannedCharge', () => {
+  it('takes the fee plus what is owed, up to half the payment', () => {
+    expect(plannedCharge(10_000, 150, 0)).toBe(150)
+    expect(plannedCharge(10_000, 150, 400)).toBe(550)
+    expect(plannedCharge(1_000, 150, 4_000)).toBe(500)
+  })
+
+  it('uses a credit to lower the charge, never below zero', () => {
+    expect(plannedCharge(10_000, 150, -100)).toBe(50)
+    expect(plannedCharge(10_000, 150, -500)).toBe(0)
+  })
+})
+
+describe('cashAllowed', () => {
+  it('needs the seller to accept cash and not owe too much', () => {
+    expect(cashAllowed({})).toBe(false)
+    expect(cashAllowed({ acceptsCash: true })).toBe(true)
+    expect(cashAllowed({ acceptsCash: true, feeBalancePesewas: 4_999 })).toBe(true)
+    expect(cashAllowed({ acceptsCash: true, feeBalancePesewas: 5_000 })).toBe(false)
   })
 })

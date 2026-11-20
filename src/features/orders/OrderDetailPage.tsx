@@ -17,7 +17,9 @@ import { errorMessage } from '../../lib/errors'
 import { formatCedis } from '../../lib/money'
 import { formatGhanaPhone } from '../../lib/phone'
 import styles from './OrderDetailPage.module.css'
-import { DELIVERY_STATUS, ORDER_STATUS, PAYMENT_STATUS } from './orderStatus'
+import { Switch } from '../../components/ui/Switch'
+import { parseCedis } from '../../lib/money'
+import { CASH_STATUS, DELIVERY_STATUS, ORDER_STATUS, PAYMENT_STATUS, orderStatusLabel } from './orderStatus'
 import { useOrder, type OrderDetail } from './useOrder'
 
 type Pending = 'dispatch' | 'fail' | 'return' | 'cancel' | 'refund' | null
@@ -42,7 +44,8 @@ export function OrderDetailPage() {
     )
   }
 
-  const status = ORDER_STATUS[order.status]
+  const status = orderStatusLabel(order.status, order.paymentMethod)
+  const cash = order.paymentMethod === 'cash'
   const canDispatch = order.status === 'paid' || order.status === 'delivery_failed'
   const canCancel = ['draft', 'awaiting_confirmation', 'awaiting_payment', 'paid'].includes(order.status)
   const canRefund =
@@ -130,13 +133,25 @@ export function OrderDetailPage() {
               ))}
             </ul>
             <dl className={styles.totals}>
+              {order.deliveryFeePesewas > 0 && (
+                <div>
+                  <dt>Delivery</dt>
+                  <dd className="num">{formatCedis(order.deliveryFeePesewas)}</dd>
+                </div>
+              )}
               <div>
                 <dt>Customer pays</dt>
                 <dd className="num">{formatCedis(order.totalPesewas)}</dd>
               </div>
+              {cash && (
+                <div>
+                  <dt>{order.deliveryFeePesewas > 0 ? 'In cash to the rider (delivery fee paid online)' : 'In cash to the rider'}</dt>
+                  <dd className="num">{formatCedis(order.cashDuePesewas)}</dd>
+                </div>
+              )}
               {order.feePesewas > 0 && (
                 <div>
-                  <dt>Stallo fee</dt>
+                  <dt>{cash ? 'Stallo fee (taken from your online payments)' : 'Stallo fee'}</dt>
                   <dd className="num">− {formatCedis(order.feePesewas)}</dd>
                 </div>
               )}
@@ -234,12 +249,28 @@ export function OrderDetailPage() {
 
           <Card title="Payment">
             <dl className={styles.facts}>
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <Badge tone={PAYMENT_STATUS[order.paymentStatus].tone}>{PAYMENT_STATUS[order.paymentStatus].label}</Badge>
-                </dd>
-              </div>
+              {order.paymentMethod && (
+                <div>
+                  <dt>Method</dt>
+                  <dd>{cash ? 'Cash on delivery' : 'Mobile money or card'}</dd>
+                </div>
+              )}
+              {(!cash || order.deliveryFeePesewas > 0) && (
+                <div>
+                  <dt>{cash ? 'Delivery fee' : 'Status'}</dt>
+                  <dd>
+                    <Badge tone={PAYMENT_STATUS[order.paymentStatus].tone}>{PAYMENT_STATUS[order.paymentStatus].label}</Badge>
+                  </dd>
+                </div>
+              )}
+              {cash && order.cashStatus && (
+                <div>
+                  <dt>Cash {formatCedis(order.cashDuePesewas)}</dt>
+                  <dd>
+                    <Badge tone={CASH_STATUS[order.cashStatus].tone}>{CASH_STATUS[order.cashStatus].label}</Badge>
+                  </dd>
+                </div>
+              )}
               {order.payment && (
                 <div>
                   <dt>Reference</dt>
@@ -251,6 +282,16 @@ export function OrderDetailPage() {
               <ButtonLink size="sm" variant="secondary" to={order.paymentUrl} external icon={<ExternalLink size={15} />}>
                 Open payment link
               </ButtonLink>
+            )}
+            {cash && order.cashStatus === 'with_rider' && (
+              <Button
+                size="sm"
+                variant="dark"
+                icon={<Check size={15} />}
+                onClick={() => void run(() => actions.markCashReceived({ orderId }), 'Cash marked as received').catch(() => undefined)}
+              >
+                Cash received from rider
+              </Button>
             )}
           </Card>
 
@@ -273,6 +314,14 @@ export function OrderDetailPage() {
                     <a href={`tel:${order.delivery.riderPhone}`}>{formatGhanaPhone(order.delivery.riderPhone)}</a>
                   </dd>
                 </div>
+                {order.delivery.riderFeePesewas !== undefined && (
+                  <div>
+                    <dt>Rider’s fee</dt>
+                    <dd>
+                      {formatCedis(order.delivery.riderFeePesewas)} · {order.delivery.riderFeeFromCash ? 'kept from the cash' : 'you pay them'}
+                    </dd>
+                  </div>
+                )}
                 {order.delivery.notes && (
                   <div>
                     <dt>Note</dt>
@@ -295,6 +344,7 @@ export function OrderDetailPage() {
         key={open === 'dispatch' ? 'open' : 'closed'}
         open={open === 'dispatch'}
         onOpenChange={(o) => setOpen(o ? 'dispatch' : null)}
+        cashDuePesewas={cash ? order.cashDuePesewas : 0}
         onDispatch={async (rider) => {
           try {
             const { riderLink } = await actions.dispatch({ orderId, ...rider })
@@ -358,7 +408,10 @@ function NextStep({ order, onResend }: { order: OrderDetail; onResend: () => Pro
     awaiting_payment: order.paymentUrl
       ? 'Payment link sent. The order moves on as soon as the customer pays.'
       : 'The payment link hasn’t gone out yet.',
-    paid: 'Paid. Dispatch it when it’s ready to go.',
+    paid:
+      order.paymentMethod === 'cash'
+        ? `Cash on delivery. Dispatch it when it’s ready; the rider collects ${formatCedis(order.cashDuePesewas)}.`
+        : 'Paid. Dispatch it when it’s ready to go.',
     dispatched: 'With the rider. It’s marked delivered when the rider enters the customer’s code.',
     delivery_failed: 'Delivery didn’t happen. Send it again, or mark it returned.',
   }
@@ -387,24 +440,42 @@ function NextStep({ order, onResend }: { order: OrderDetail; onResend: () => Pro
   )
 }
 
+type RiderDetails = { riderName: string; riderPhone: string; riderFeePesewas?: number; riderFeeFromCash?: boolean }
+
 function DispatchDialog({
   open,
   onOpenChange,
   onDispatch,
+  cashDuePesewas,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onDispatch: (rider: { riderName: string; riderPhone: string }) => Promise<unknown>
+  onDispatch: (rider: RiderDetails) => Promise<unknown>
+  /** For cash orders: what the rider collects. 0 otherwise. */
+  cashDuePesewas: number
 }) {
   const [riderName, setRiderName] = useState('')
   const [riderPhone, setRiderPhone] = useState('')
+  const [fee, setFee] = useState('')
+  const [fromCash, setFromCash] = useState(false)
+  const [feeError, setFeeError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    const riderFeePesewas = fee.trim() === '' ? undefined : parseCedis(fee)
+    if (riderFeePesewas === null) return setFeeError('Enter an amount, for example 15, or leave it empty.')
+    if (fromCash && riderFeePesewas !== undefined && riderFeePesewas > cashDuePesewas) {
+      return setFeeError('The fee can’t be more than the cash the rider collects.')
+    }
+    setFeeError(null)
     setBusy(true)
     try {
-      await onDispatch({ riderName, riderPhone })
+      await onDispatch({
+        riderName,
+        riderPhone,
+        ...(riderFeePesewas !== undefined ? { riderFeePesewas, riderFeeFromCash: cashDuePesewas > 0 && fromCash } : {}),
+      })
       onOpenChange(false)
     } catch {
       // The toast already explains what went wrong.
@@ -441,6 +512,27 @@ function DispatchDialog({
         onChange={(e) => setRiderPhone(e.target.value)}
         hint="They’ll get the job on WhatsApp."
       />
+      {cashDuePesewas > 0 && (
+        <p className={styles.muted}>Cash on delivery: the rider collects {formatCedis(cashDuePesewas)} from the customer.</p>
+      )}
+      <Field
+        label="Rider’s fee (optional)"
+        prefix="GH₵"
+        inputMode="decimal"
+        placeholder="0.00"
+        value={fee}
+        onChange={(e) => setFee(e.target.value)}
+        error={feeError ?? undefined}
+        hint="What you agreed to pay them. Stallo only shows it to the rider; you settle it between you."
+      />
+      {cashDuePesewas > 0 && fee.trim() !== '' && (
+        <Switch
+          label="Rider keeps the fee from the cash"
+          hint="Otherwise you pay them yourself."
+          checked={fromCash}
+          onCheckedChange={setFromCash}
+        />
+      )}
     </Dialog>
   )
 }

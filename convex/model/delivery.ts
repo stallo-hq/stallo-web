@@ -3,7 +3,9 @@ import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 import { raiseAttention } from './attention'
 import { copy } from './copy'
+import { adjustFeeBalance } from './fulfilment'
 import { sha256 } from './crypto'
+import { formatCedis } from '../lib/money'
 import { orderLabel, transition } from './orders'
 import { queueMessage } from './outbound'
 
@@ -57,7 +59,15 @@ export async function checkPin(ctx: MutationCtx, delivery: Doc<'deliveries'>, pi
 
   const { order, seller, customer } = await load(ctx, delivery)
   await ctx.db.patch(delivery._id, { status: 'delivered', closedAt: Date.now() })
-  await transition(ctx, order, 'delivered', { note: `Delivery code confirmed by ${delivery.riderName}` })
+  const cash = order.paymentMethod === 'cash'
+  await transition(ctx, order, 'delivered', {
+    note: cash
+      ? `Delivery code confirmed by ${delivery.riderName}; ${formatCedis(order.cashDuePesewas ?? 0)} cash collected`
+      : `Delivery code confirmed by ${delivery.riderName}`,
+    ...(cash ? { cashStatus: 'with_rider' as const } : {}),
+  })
+  // The sale happened in cash, so Stallo's fee is owed now; later online payments cover it.
+  if (cash) await adjustFeeBalance(ctx, seller, order.feePesewas)
   await queueMessage(ctx, {
     sellerId: seller._id,
     to: customer.phone,

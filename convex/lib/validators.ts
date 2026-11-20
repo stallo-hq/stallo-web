@@ -44,6 +44,11 @@ export const deliveryStatus = v.union(
   v.literal('returned'),
 )
 
+export const paymentMethod = v.union(v.literal('online'), v.literal('cash'))
+
+/** Cash on delivery: the rider still has to collect it, has it, or has handed it to the seller. */
+export const cashStatus = v.union(v.literal('due'), v.literal('with_rider'), v.literal('received'))
+
 export const attentionType = v.union(
   v.literal('low_confidence'),
   v.literal('payment_failed'),

@@ -1,7 +1,7 @@
 import { mapsUrl } from './lib/address'
 import { v } from 'convex/values'
 import { query } from './_generated/server'
-import { orderStatus, paymentStatus } from './lib/validators'
+import { cashStatus, orderStatus, paymentMethod, paymentStatus } from './lib/validators'
 import { currentSeller } from './model/auth'
 import { ACTIVE_STATUSES, itemsSummary, orderLabel } from './model/orders'
 
@@ -15,6 +15,7 @@ const orderRow = v.object({
   totalPesewas: v.number(),
   status: orderStatus,
   paymentStatus: paymentStatus,
+  paymentMethod: v.optional(paymentMethod),
 })
 
 /** Newest first. `active` = everything still in progress; drafts are never listed. */
@@ -50,6 +51,7 @@ export const list = query({
           totalPesewas: o.totalPesewas,
           status: o.status,
           paymentStatus: o.paymentStatus,
+          paymentMethod: o.paymentMethod,
         }
       }),
     )
@@ -66,6 +68,10 @@ const detailView = v.object({
   subtotalPesewas: v.number(),
   feePesewas: v.number(),
   totalPesewas: v.number(),
+  deliveryFeePesewas: v.number(),
+  paymentMethod: v.optional(paymentMethod),
+  cashDuePesewas: v.number(),
+  cashStatus: v.optional(cashStatus),
   address: v.optional(v.string()),
   digitalAddress: v.optional(v.string()),
   hasPin: v.boolean(),
@@ -84,6 +90,8 @@ const detailView = v.object({
       status: v.union(v.literal('dispatched'), v.literal('delivered'), v.literal('failed'), v.literal('returned')),
       notes: v.optional(v.string()),
       dispatchedAt: v.optional(v.number()),
+      riderFeePesewas: v.optional(v.number()),
+      riderFeeFromCash: v.boolean(),
     }),
   ),
   attention: v.array(v.object({ _id: v.id('attentionItems'), summary: v.string(), createdAt: v.number() })),
@@ -122,6 +130,10 @@ export const get = query({
       feePesewas: order.feePesewas,
       totalPesewas: order.totalPesewas,
       address: order.address,
+      deliveryFeePesewas: order.deliveryFeePesewas ?? 0,
+      paymentMethod: order.paymentMethod,
+      cashDuePesewas: order.cashDuePesewas ?? 0,
+      cashStatus: order.cashStatus,
       digitalAddress: order.digitalAddress,
       hasPin: order.location !== undefined,
       outsideDeliveryArea: order.outsideDeliveryArea === true,
@@ -138,6 +150,8 @@ export const get = query({
             status: delivery.status,
             notes: delivery.notes,
             dispatchedAt: delivery.dispatchedAt,
+            riderFeePesewas: delivery.riderFeePesewas,
+            riderFeeFromCash: delivery.riderFeeFromCash === true,
           }
         : null,
       attention: attention

@@ -18,6 +18,7 @@ function answer(partial: Partial<Extraction>): Extraction {
     recipient_name: null,
     recipient_phone: null,
     outside_delivery_area: null,
+    pay_with: null,
     unmatched: [],
     reply: null,
     confidence: 0.95,

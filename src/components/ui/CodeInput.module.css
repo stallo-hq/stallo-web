@@ -37,6 +37,23 @@
   animation: blink 1s step-end infinite;
 }
 
+.large {
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+.large .slot {
+  max-width: 76px;
+  height: 84px;
+  border-width: 2px;
+  font-size: 38px;
+}
+
+.large .caret {
+  height: 38px;
+}
+
 @keyframes blink {
   50% {
     opacity: 0;

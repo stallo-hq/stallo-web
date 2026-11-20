@@ -239,6 +239,7 @@ const extraction = v.object({
   recipient_name: v.union(v.null(), v.string()),
   recipient_phone: v.union(v.null(), v.string()),
   outside_delivery_area: v.union(v.null(), v.boolean()),
+  pay_with: v.union(v.null(), v.literal('online'), v.literal('cash')),
   unmatched: v.array(v.string()),
   reply: v.union(v.null(), v.string()),
   confidence: v.number(),

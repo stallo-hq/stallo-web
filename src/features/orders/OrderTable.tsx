@@ -6,7 +6,7 @@ import { formatShortDateTime } from '../../lib/dates'
 import { formatCedis } from '../../lib/money'
 import { formatGhanaPhone } from '../../lib/phone'
 import styles from './OrderTable.module.css'
-import { ORDER_STATUS } from './orderStatus'
+import { orderStatusLabel } from './orderStatus'
 
 export type OrderRow = FunctionReturnType<typeof api.orders.list>[number]
 
@@ -23,7 +23,7 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
         </span>
       </div>
       {orders.map((o) => {
-        const status = ORDER_STATUS[o.status]
+        const status = orderStatusLabel(o.status, o.paymentMethod)
         return (
           <Link key={o._id} to={`/app/orders/${o._id}`} className={styles.row} role="row" aria-label={`Order ${o.label}`}>
             <div role="cell" className={styles.customer}>
