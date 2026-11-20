@@ -126,6 +126,26 @@ async function handleText(
     state.customer = { ...customer, name: extraction.customer_name }
   }
 
+  // We just asked where to deliver: a reply that doesn't change the basket is the address,
+  // however unsure the model is about it ("Knust", "Madina zongo junction").
+  const order = state.order
+  const waitingForAddress = order !== null && order.status === 'draft' && order.items.length > 0 && !order.address
+  if (waitingForAddress && extraction.items === null && extraction.intent !== 'cancel' && extraction.intent !== 'greeting') {
+    await updateBasket(ctx, state, { items: null, address: extraction.address ?? input.text.trim().slice(0, 300), unmatched: [] })
+    return
+  }
+  // An address given alongside a question or remark still belongs on the open order.
+  if (
+    order !== null &&
+    order.status !== 'awaiting_payment' &&
+    extraction.address &&
+    (extraction.intent === 'question' || extraction.intent === 'other') &&
+    extraction.confidence >= input.threshold
+  ) {
+    await updateBasket(ctx, state, { items: extraction.items, address: extraction.address, unmatched: extraction.unmatched })
+    return
+  }
+
   if (extraction.confidence < input.threshold && extraction.intent !== 'greeting') {
     state.replies.push(copy.holding(seller.businessName))
     await raiseAttention(ctx, {

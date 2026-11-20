@@ -266,3 +266,18 @@ async function paidOrder(t: T, productId: Id<'products'>) {
     })
   })
 }
+
+describe('asking for the address', () => {
+  it('takes a short reply as the address even when the assistant is unsure', async () => {
+    const { t, productId, answers, order } = await world()
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }] }))
+    await whatsappWebhook(t, 'Jollof')
+    await settle(t)
+    expect((await order()).status).toBe('draft')
+
+    answers.push(answer({ intent: 'other', confidence: 0.3 }))
+    await whatsappWebhook(t, 'Knust')
+    await settle(t)
+    expect(await order()).toMatchObject({ status: 'awaiting_confirmation', address: 'Knust' })
+  })
+})
