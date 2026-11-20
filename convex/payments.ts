@@ -396,3 +396,62 @@ export const cancelOrder = action({
     return null
   },
 })
+
+// ---------------------------------------------------------------------------
+// Checking with Paystack ourselves, so a missed webhook never leaves an order stuck.
+
+/** Marks the payment paid only if Paystack says it succeeded for the right amount. Never marks it failed. */
+export const verifyIfPaid = internalAction({
+  args: { reference: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { reference }): Promise<boolean> => {
+    const payment = await ctx.runQuery(internal.payments.byReference, { reference })
+    if (payment === null) return false
+    if (payment.status === 'paid' || payment.status === 'refunded') return true
+    const tx = await verifyTransaction(reference)
+    if (tx.status !== 'success' || tx.amount !== payment.amountPesewas || tx.currency !== 'GHS') return false
+    await ctx.runMutation(internal.payments.markPaid, { reference })
+    return true
+  },
+})
+
+/** Called by the page Paystack sends the customer to after paying. Safe to call by anyone: it only re-checks with Paystack. */
+export const checkPayment = action({
+  args: { reference: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { reference }): Promise<boolean> => {
+    if (!/^STL-[A-Za-z0-9-]{1,40}$/.test(reference)) return false
+    return await ctx.runAction(internal.payments.verifyIfPaid, { reference })
+  },
+})
+
+export const pendingReferences = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const since = Date.now() - 2 * 24 * 60 * 60 * 1000
+    const pending = await ctx.db
+      .query('payments')
+      .withIndex('by_status', (q) => q.eq('status', 'pending'))
+      .order('desc')
+      .take(100)
+    return pending.filter((p) => p._creationTime > since).map((p) => p.reference)
+  },
+})
+
+/** Cron: re-checks recent unpaid payment links with Paystack. */
+export const checkPending = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx): Promise<null> => {
+    const references: string[] = await ctx.runQuery(internal.payments.pendingReferences, {})
+    for (const reference of references) {
+      try {
+        await ctx.runAction(internal.payments.verifyIfPaid, { reference })
+      } catch {
+        // Paystack unreachable: the next run tries again.
+      }
+    }
+    return null
+  },
+})

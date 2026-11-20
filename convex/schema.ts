@@ -155,7 +155,8 @@ export default defineSchema({
     rawEvent: v.optional(v.any()),
   })
     .index('by_reference', ['reference'])
-    .index('by_order', ['orderId']),
+    .index('by_order', ['orderId'])
+    .index('by_status', ['status']),
 
   deliveries: defineTable({
     orderId: v.id('orders'),
