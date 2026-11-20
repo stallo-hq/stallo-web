@@ -5,7 +5,7 @@ import { feeConfig } from './model/fees'
 /** Public: the current fee, so the marketing site always shows the real price. */
 export const pricing = query({
   args: {},
-  returns: v.object({ percent: v.number(), flatPesewas: v.number() }),
+  returns: v.object({ percent: v.number(), flatPesewas: v.number(), capPesewas: v.optional(v.number()) }),
   handler: async () => feeConfig(),
 })
 

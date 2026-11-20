@@ -25,9 +25,11 @@ export function pesewasToInput(pesewas: number): string {
 }
 
 /** { percent: 2.5, flatPesewas: 50 } → "2.5% + GH₵ 0.50". Null when there is no fee. */
-export function formatFee({ percent, flatPesewas }: { percent: number; flatPesewas: number }): string | null {
+export function formatFee({ percent, flatPesewas, capPesewas }: { percent: number; flatPesewas: number; capPesewas?: number }): string | null {
   const parts: string[] = []
   if (percent > 0) parts.push(`${Number(percent.toFixed(2))}%`)
   if (flatPesewas > 0) parts.push(formatCedis(flatPesewas))
-  return parts.length > 0 ? parts.join(' + ') : null
+  if (parts.length === 0) return null
+  const fee = parts.join(' + ')
+  return capPesewas !== undefined && capPesewas > 0 ? `${fee} (at most ${formatCedis(capPesewas)})` : fee
 }
