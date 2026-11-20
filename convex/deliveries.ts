@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { internal } from './_generated/api'
-import type { Doc } from './_generated/dataModel'
-import { action, internalMutation, mutation, query } from './_generated/server'
+import type { Doc, Id } from './_generated/dataModel'
+import { action, internalAction, internalMutation, internalQuery, mutation, query } from './_generated/server'
 import { toE164Ghana } from './lib/phone'
 import { assertOwned, requireSeller } from './model/auth'
 import { copy } from './model/copy'
@@ -23,8 +23,8 @@ function riderLink(token: string): string {
  */
 export const dispatch = action({
   args: { orderId: v.id('orders'), riderName: v.string(), riderPhone: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
+  returns: v.object({ riderLink: v.string() }),
+  handler: async (ctx, args): Promise<{ riderLink: string }> => {
     const pin = randomDigits(PIN_LENGTH)
     const token = randomToken()
     await ctx.runMutation(internal.deliveries.applyDispatch, {
@@ -34,7 +34,8 @@ export const dispatch = action({
       token,
       tokenHash: await sha256(token),
     })
-    return null
+    // Shown to the seller once, so they can forward it if WhatsApp can't reach the rider.
+    return { riderLink: riderLink(token) }
   },
 })
 
@@ -225,6 +226,49 @@ export const riderReportFailed = mutation({
   handler: async (ctx, { token, reason }) => {
     const delivery = await deliveryForToken(ctx, token)
     await markDeliveryFailed(ctx, delivery, reason, `Rider ${delivery.riderName}`)
+    return null
+  },
+})
+
+/** The customer asked for their code again. The old one is hashed, so send a fresh one. */
+export const resendPin = internalAction({
+  args: { deliveryId: v.id('deliveries') },
+  returns: v.null(),
+  handler: async (ctx, { deliveryId }): Promise<null> => {
+    const orderId: Id<'orders'> | null = await ctx.runQuery(internal.deliveries.openDeliveryOrder, { deliveryId })
+    if (orderId === null) return null
+    const pin = randomDigits(PIN_LENGTH)
+    await ctx.runMutation(internal.deliveries.applyNewPin, { deliveryId, pin, pinHash: await hashPin(orderId, pin) })
+    return null
+  },
+})
+
+export const openDeliveryOrder = internalQuery({
+  args: { deliveryId: v.id('deliveries') },
+  returns: v.union(v.id('orders'), v.null()),
+  handler: async (ctx, { deliveryId }) => {
+    const delivery = await ctx.db.get(deliveryId)
+    return delivery && delivery.status === 'dispatched' ? delivery.orderId : null
+  },
+})
+
+export const applyNewPin = internalMutation({
+  args: { deliveryId: v.id('deliveries'), pin: v.string(), pinHash: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { deliveryId, pin, pinHash }) => {
+    const delivery = await ctx.db.get(deliveryId)
+    if (!delivery || delivery.status !== 'dispatched') return null
+    const order = (await ctx.db.get(delivery.orderId))!
+    const seller = (await ctx.db.get(order.sellerId))!
+    const customer = (await ctx.db.get(order.customerId))!
+    await ctx.db.patch(deliveryId, { pinHash, attempts: 0 })
+    await queueMessage(ctx, {
+      sellerId: seller._id,
+      to: customer.phone,
+      orderId: order._id,
+      text: copy.deliveryPin(seller.businessName, order, delivery.riderName, pin),
+      template: { name: 'stallo_delivery_pin', params: [seller.businessName, orderLabel(order), delivery.riderName, pin] },
+    })
     return null
   },
 })

@@ -266,7 +266,19 @@ export function OrderDetailPage() {
         key={open === 'dispatch' ? 'open' : 'closed'}
         open={open === 'dispatch'}
         onOpenChange={(o) => setOpen(o ? 'dispatch' : null)}
-        onDispatch={(rider) => run(() => actions.dispatch({ orderId, ...rider }), 'Dispatched. The customer has their code.')}
+        onDispatch={async (rider) => {
+          try {
+            const { riderLink } = await actions.dispatch({ orderId, ...rider })
+            toast.success('Dispatched. The customer has their code.', {
+              description: 'The rider gets their link on WhatsApp. You can also send it yourself.',
+              duration: 20000,
+              action: { label: 'Copy rider link', onClick: () => void navigator.clipboard.writeText(riderLink) },
+            })
+          } catch (err) {
+            toast.error(errorMessage(err))
+            throw err
+          }
+        }}
       />
       <FailDialog
         key={open === 'fail' ? 'fail-open' : 'fail-closed'}

@@ -126,6 +126,20 @@ async function handleText(
     state.customer = { ...customer, name: extraction.customer_name }
   }
 
+  // "What's the code?" while an order is with a rider: send a fresh delivery code.
+  if (/\b(code|pin)\b/i.test(input.text)) {
+    const outForDelivery = await ctx.db
+      .query('orders')
+      .withIndex('by_seller_and_status', (q) => q.eq('sellerId', seller._id).eq('status', 'dispatched'))
+      .order('desc')
+      .take(50)
+    const mine = outForDelivery.find((o) => o.customerId === customer._id)
+    if (mine?.deliveryId) {
+      await ctx.scheduler.runAfter(0, internal.deliveries.resendPin, { deliveryId: mine.deliveryId })
+      return
+    }
+  }
+
   // We just asked where to deliver: a reply that doesn't change the basket is the address,
   // however unsure the model is about it ("Knust", "Madina zongo junction").
   const order = state.order

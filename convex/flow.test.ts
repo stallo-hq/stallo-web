@@ -281,3 +281,23 @@ describe('asking for the address', () => {
     expect(await order()).toMatchObject({ status: 'awaiting_confirmation', address: 'Knust' })
   })
 })
+
+describe('customer asks for the delivery code', () => {
+  it('sends a fresh code that the rider can use', async () => {
+    const { t, ama, productId, order, sent } = await world()
+    const orderId = await paidOrder(t, productId)
+    const { riderLink } = await ama.action(api.deliveries.dispatch, { orderId, riderName: 'Yaw', riderPhone: '0271234567' })
+    expect(riderLink).toMatch(/\/r\/[0-9a-f]{64}$/)
+    await settle(t)
+
+    await whatsappWebhook(t, 'Whats the code, the rider is here')
+    await settle(t)
+    const codes = (await sent()).filter((m) => m.recipient === CUSTOMER && m.text?.includes('delivery code'))
+    expect(codes).toHaveLength(2)
+    const latest = codes.sort((a, b) => b._creationTime - a._creationTime)[0]
+    const pin = /delivery code is (\d{4})/.exec(latest.text!)![1]
+    const token = riderLink.split('/r/')[1]
+    expect(await t.mutation(api.deliveries.riderConfirm, { token, pin })).toMatchObject({ ok: true })
+    expect((await order()).status).toBe('delivered')
+  })
+})
