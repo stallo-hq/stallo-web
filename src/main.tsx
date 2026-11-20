@@ -18,6 +18,8 @@ import '@ionic/react/css/flex-utils.css'
 import '@ionic/react/css/display.css'
 /* Dark mode follows the device setting */
 import '@ionic/react/css/palettes/dark.system.css'
+/* Inter for non-Apple devices (Apple devices use San Francisco) */
+import '@fontsource-variable/inter'
 /* Stallo theme */
 import './theme/typography.css'
 import './theme/app.css'

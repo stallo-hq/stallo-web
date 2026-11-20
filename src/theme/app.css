@@ -1,7 +1,101 @@
 /*
- * Layout helpers only. Colours come from Ionic's theme variables; no hex values,
- * gradients or decorative shadows.
+ * Stallo theme. Colours come only from Ionic's theme variables (light and dark
+ * follow the device). No hex values, gradients or decorative shadows.
  */
+
+:root {
+  /* San Francisco on Apple devices, Inter everywhere else. */
+  --ion-font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', 'Segoe UI',
+    Roboto, sans-serif;
+  --radius: 12px;
+}
+
+/* Ionic sets its palette (including dark mode) on body, so derived tokens live here too.
+   `Canvas` is the browser's own page colour, used only if Ionic sets nothing. */
+body {
+  --surface: var(--ion-item-background, var(--ion-background-color, Canvas));
+  --selected-fill: color-mix(in srgb, var(--ion-color-primary) 12%, transparent);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* ---------- Frame ---------- */
+
+/* Phone tab bar only below the desktop breakpoint; the sidebar takes over above it. */
+@media (min-width: 992px) {
+  .phone-tabbar {
+    display: none !important;
+  }
+}
+
+ion-split-pane {
+  --side-width: 248px;
+  --side-min-width: 248px;
+  --side-max-width: 248px;
+}
+
+.sidebar {
+  --border: 0.55px solid var(--ion-color-step-150, var(--ion-border-color));
+}
+
+.sidebar-brand {
+  padding: 28px 20px 16px;
+}
+
+.sidebar-business {
+  margin: 2px 0 0;
+}
+
+.sidebar-nav {
+  background: transparent;
+  padding: 0 10px;
+}
+
+.sidebar-item {
+  --background: transparent;
+  --border-radius: 8px;
+  --min-height: 44px;
+  --padding-start: 10px;
+  --inner-padding-end: 8px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.sidebar-item ion-icon {
+  margin-inline-end: 12px;
+  font-size: 1.25rem;
+  color: var(--ion-color-medium);
+}
+
+.sidebar-item.selected {
+  --background: var(--selected-fill);
+  --color: var(--ion-color-primary);
+}
+
+.sidebar-item.selected ion-icon {
+  color: var(--ion-color-primary);
+}
+
+.sidebar-footer {
+  position: absolute;
+  bottom: 16px;
+  left: 20px;
+  right: 20px;
+  margin: 0;
+}
+
+/* ---------- Page ---------- */
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.page-subtitle {
+  padding: 0 20px;
+  margin: -4px 0 8px;
+}
 
 .centered {
   display: flex;
@@ -10,17 +104,13 @@
   height: 100%;
 }
 
-/* Footnote text under an inset list, aligned with the list's inset like iOS. */
-.list-footer {
-  padding: 0 32px;
-  margin-top: -8px;
-  margin-bottom: 24px;
-}
-
-/* Text above an inset list's top edge, aligned with the list's inset. */
+/* Text above / below an inset list, aligned with the list's inset like iOS. */
 .list-header-note {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
   padding: 0 32px;
-  margin: 24px 0 -8px;
+  margin: 28px 0 -8px;
 }
 
 .section-header {
@@ -28,26 +118,155 @@
   font-weight: 400;
 }
 
+.list-footer {
+  padding: 0 32px;
+  margin-top: -8px;
+  margin-bottom: 24px;
+}
+
+.toolbar-gap {
+  padding: 8px 16px 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Stat tiles ---------- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px;
+}
+
+@media (min-width: 768px) {
+  .stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.stat-tile {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px 16px;
+  min-width: 0;
+}
+
+.stat-tile .stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+
+.stat-tile .stat-value {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Two-column area on wide screens ---------- */
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 992px) {
+  .columns {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* ---------- Setup checklist ---------- */
+
+.setup-progress {
+  margin: 0 16px;
+  border-radius: 2px;
+}
+
+.step-number {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Signed-out screens ---------- */
+
+.auth {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 12vh 16px 40px;
+}
+
+.auth-brand {
+  color: var(--ion-color-primary);
+  margin: 0 0 20px;
+}
+
+.auth-subtitle {
+  margin: 8px 0 24px;
+}
+
+/* Lists in the narrow auth column sit flush with its edges. */
+.auth .auth-list {
+  margin-inline: 0;
+}
+
+.auth .list-footer {
+  padding: 0 16px;
+}
+
+/* ---------- Empty state ---------- */
+
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   text-align: center;
-  margin-top: 15vh;
-  max-width: 22rem;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 12vh auto 0;
+  max-width: 24rem;
+  padding: 0 24px;
 }
 
 .empty-state-icon {
+  font-size: 2.75rem;
+  margin-bottom: 4px;
+}
+
+.empty-state ion-button {
+  margin-top: 12px;
+}
+
+/* ---------- Explainer pages (WhatsApp, Payouts) ---------- */
+
+.hero-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 8px 32px 4px;
+}
+
+.hero-status ion-icon {
   font-size: 3rem;
 }
 
-/* 20pt margins on wider screens; Ionic's default 16px stays on phones. */
+/* 20pt side margins on wider screens; Ionic's default 16px stays on phones. */
 @media (min-width: 768px) {
-  ion-content {
-    --padding-start: 20px;
-    --padding-end: 20px;
+  ion-list.list-inset {
+    margin-inline: 20px;
+  }
+
+  .stat-grid {
+    margin-inline: 20px;
   }
 }

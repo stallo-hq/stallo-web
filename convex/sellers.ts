@@ -1,15 +1,17 @@
-import { getAuthUserId } from '@convex-dev/auth/server'
 import { ConvexError, v } from 'convex/values'
 import { components } from './_generated/api'
 import { mutation, query } from './_generated/server'
+import { currentSeller, findSellerForUser, requireSeller, requireUserId } from './model/auth'
+import { cleanText, LIMITS } from './model/validation'
 
 const sellerView = v.object({
   _id: v.id('sellers'),
   businessName: v.string(),
   phone: v.string(),
-  onboarding: v.string(),
   whatsappConnected: v.boolean(),
   payoutsConnected: v.boolean(),
+  whatsappSetupRequestedAt: v.optional(v.number()),
+  payoutsSetupRequestedAt: v.optional(v.number()),
 })
 
 /** The signed-in user's seller profile, or null if they haven't set one up yet. */
@@ -17,41 +19,41 @@ export const mine = query({
   args: {},
   returns: v.union(sellerView, v.null()),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx)
-    if (userId === null) return null
-    const seller = await ctx.db
-      .query('sellers')
-      .withIndex('by_owner', (q) => q.eq('ownerId', userId))
-      .unique()
+    const seller = await currentSeller(ctx)
     if (seller === null) return null
     return {
       _id: seller._id,
       businessName: seller.businessName,
       phone: seller.phone,
-      onboarding: seller.onboarding,
       whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
       payoutsConnected: seller.paystackSubaccountCode !== undefined,
+      whatsappSetupRequestedAt: seller.whatsappSetupRequestedAt,
+      payoutsSetupRequestedAt: seller.payoutsSetupRequestedAt,
     }
   },
 })
 
-/** First-run setup: create the seller profile for the signed-in user. */
+/** Ask the Stallo team to connect WhatsApp or payouts. Idempotent: keeps the first request time. */
+export const requestSetup = mutation({
+  args: { kind: v.union(v.literal('whatsapp'), v.literal('payouts')) },
+  returns: v.null(),
+  handler: async (ctx, { kind }) => {
+    const seller = await requireSeller(ctx)
+    const field = kind === 'whatsapp' ? 'whatsappSetupRequestedAt' : 'payoutsSetupRequestedAt'
+    if (seller[field] === undefined) await ctx.db.patch(seller._id, { [field]: Date.now() })
+    return null
+  },
+})
+
+/** First-run setup: create the seller profile for the signed-in user. Idempotent. */
 export const create = mutation({
   args: { businessName: v.string() },
   returns: v.id('sellers'),
-  handler: async (ctx, { businessName }) => {
-    const userId = await getAuthUserId(ctx)
-    if (userId === null) throw new ConvexError('Not signed in')
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx)
+    const businessName = cleanText(args.businessName, 'Business name', LIMITS.businessName)
 
-    const name = businessName.trim()
-    if (name.length < 2 || name.length > 80) {
-      throw new ConvexError('Business name must be 2 to 80 characters')
-    }
-
-    const existing = await ctx.db
-      .query('sellers')
-      .withIndex('by_owner', (q) => q.eq('ownerId', userId))
-      .unique()
+    const existing = await findSellerForUser(ctx, userId)
     if (existing !== null) return existing._id
 
     // The phone number they signed up with is their username.
@@ -60,31 +62,20 @@ export const create = mutation({
 
     return await ctx.db.insert('sellers', {
       ownerId: userId,
-      businessName: name,
+      businessName,
       phone,
       onboarding: 'whatsapp',
     })
   },
 })
 
-/** Rename the business from Settings. */
 export const updateBusinessName = mutation({
   args: { businessName: v.string() },
   returns: v.null(),
-  handler: async (ctx, { businessName }) => {
-    const userId = await getAuthUserId(ctx)
-    if (userId === null) throw new ConvexError('Not signed in')
-    const seller = await ctx.db
-      .query('sellers')
-      .withIndex('by_owner', (q) => q.eq('ownerId', userId))
-      .unique()
-    if (seller === null) throw new ConvexError('No seller profile')
-
-    const name = businessName.trim()
-    if (name.length < 2 || name.length > 80) {
-      throw new ConvexError('Business name must be 2 to 80 characters')
-    }
-    await ctx.db.patch(seller._id, { businessName: name })
+  handler: async (ctx, args) => {
+    const seller = await requireSeller(ctx)
+    const businessName = cleanText(args.businessName, 'Business name', LIMITS.businessName)
+    await ctx.db.patch(seller._id, { businessName })
     return null
   },
 })

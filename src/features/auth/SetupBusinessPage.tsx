@@ -1,10 +1,12 @@
-import { IonButton, IonInput, IonItem, IonList, IonSpinner, IonText } from '@ionic/react'
+import { IonButton, IonInput, IonItem, IonList, IonSpinner } from '@ionic/react'
 import { useMutation } from 'convex/react'
 import { ConvexError } from 'convex/values'
 import { useRef, useState, type FormEvent } from 'react'
 import { api } from '../../../convex/_generated/api'
-import { LargeTitlePage } from '../../components/LargeTitlePage'
+import { SectionFooter } from '../../components/SectionFooter'
+import { inputValue } from '../../lib/forms'
 import { haptic } from '../../lib/haptics'
+import { AuthLayout } from './AuthLayout'
 
 /** Shown once, right after creating an account. */
 export function SetupBusinessPage() {
@@ -16,8 +18,7 @@ export function SetupBusinessPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    // Read at submit time so Enter never submits a stale value.
-    const name = String(nameRef.current?.value ?? '')
+    const name = inputValue(nameRef)
     if (name.trim().length < 2) {
       haptic('error')
       setError('Enter your business name.')
@@ -36,37 +37,29 @@ export function SetupBusinessPage() {
   }
 
   return (
-    <LargeTitlePage title="Your business">
+    <AuthLayout title="Name your business" subtitle="This is the name customers see in WhatsApp and on payment links.">
       <form onSubmit={submit} noValidate>
-        <IonList inset>
+        <IonList inset className="auth-list">
           <IonItem>
             <IonInput
+              ref={nameRef}
               label="Name"
               labelPlacement="fixed"
-              placeholder="e.g. Ama’s Kitchen"
+              placeholder="Ama’s Kitchen"
               autocomplete="organization"
               maxlength={80}
-              ref={nameRef}
             />
           </IonItem>
         </IonList>
         {error ? (
-          <IonText color="danger">
-            <p className="list-footer text-footnote" role="alert">
-              {error}
-            </p>
-          </IonText>
+          <SectionFooter color="danger">{error}</SectionFooter>
         ) : (
-          <IonText color="medium">
-            <p className="list-footer text-footnote">Customers see this name in WhatsApp messages.</p>
-          </IonText>
+          <SectionFooter>You can change it later in Settings.</SectionFooter>
         )}
-        <div className="ion-padding-horizontal">
-          <IonButton type="submit" expand="block" disabled={pending}>
-            {pending ? <IonSpinner name="crescent" /> : 'Continue'}
-          </IonButton>
-        </div>
+        <IonButton type="submit" expand="block" disabled={pending}>
+          {pending ? <IonSpinner name="crescent" /> : 'Continue'}
+        </IonButton>
       </form>
-    </LargeTitlePage>
+    </AuthLayout>
   )
 }

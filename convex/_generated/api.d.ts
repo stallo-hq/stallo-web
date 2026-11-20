@@ -9,7 +9,14 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as dashboard from "../dashboard.js";
 import type * as lib_validators from "../lib/validators.js";
+import type * as model_auth from "../model/auth.js";
+import type * as model_orders from "../model/orders.js";
+import type * as model_time from "../model/time.js";
+import type * as model_validation from "../model/validation.js";
+import type * as orders from "../orders.js";
+import type * as products from "../products.js";
 import type * as sellers from "../sellers.js";
 import type * as users from "../users.js";
 
@@ -21,7 +28,14 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  dashboard: typeof dashboard;
   "lib/validators": typeof lib_validators;
+  "model/auth": typeof model_auth;
+  "model/orders": typeof model_orders;
+  "model/time": typeof model_time;
+  "model/validation": typeof model_validation;
+  orders: typeof orders;
+  products: typeof products;
   sellers: typeof sellers;
   users: typeof users;
 }>;

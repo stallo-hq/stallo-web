@@ -24,25 +24,32 @@ npm run dev         # in a second terminal → http://localhost:5173
 | `npm run convex` | Same as `npx convex dev` |
 | `npm run build` | Type-check and production build |
 | `npm run lint` | Lint (oxlint) |
+| `npm test` | Unit tests (`src/lib`) and Convex function tests (`convex/*.test.ts`, via convex-test) |
 
 ## Layout
 
 ```
-convex/           Convex backend: schema, auth, functions (owned by this repo)
-  schema.ts       all tables (money in pesewas, phones in E.164)
-  auth.ts         phone number + password sign-in (Convex Auth)
-  lib/            shared validators (order/payment status values)
+convex/              Convex backend (owned by this repo)
+  schema.ts          all tables (money in pesewas, phones in E.164)
+  auth.ts            phone number + password sign-in (Convex Auth)
+  model/             shared rules: auth guard (requireSeller, assertOwned), validation, time
+  lib/               shared validators (order/payment status values)
+  sellers.ts, products.ts, orders.ts, dashboard.ts   thin public functions
+  sellers.test.ts    behaviour + "a seller never sees another seller's data"
 src/
-  app/            App (auth gate) and Tabs (Today, Orders, Products, Settings)
-  components/     LargeTitlePage, EmptyState
-  features/       one folder per area: auth, today, orders, products, settings
-  lib/            haptics, phone formatting
-  theme/          iOS text styles (typography.css) and layout helpers
+  app/               App (auth gate), Shell (sidebar on desktop, tab bar on phones), navigation
+  components/        shared layout: LargeTitlePage, SectionHeader/Footer, EmptyState
+  features/<area>/   pages, components and data hooks for auth, today, orders, products, settings
+  hooks/             app-wide hooks (useSeller)
+  lib/               formatting and helpers: money, phone, dates, forms, haptics (one source each)
+  theme/             iOS text styles (typography.css) and app layout (app.css)
 ```
+
+Rules of thumb: pages never call Convex directly (they use the feature's hook, e.g. `useProducts`); every seller-facing Convex function starts with `requireSeller`/`currentSeller`; status labels and colours live in one file per area (`orderStatus.ts`, `connectionStatus.ts`).
 
 ## Design rules
 
-The UI follows Apple's Human Interface Guidelines using Ionic's own components in iOS mode. Use Ionic components only (no Tailwind, shadcn or other kits), Ionicons for icons, Ionic colour variables (no hex values), and the text classes in `src/theme/typography.css`. See `CLAUDE.md` §6.
+The UI follows Apple's Human Interface Guidelines using Ionic's own components in iOS mode, laid out as a responsive web app: a sidebar at 992px and wider, a tab bar on phones, content in a centred column. Use Ionic components only (no Tailwind, shadcn or other kits), Ionicons for icons, Ionic colour variables (no hex values), and the text classes in `src/theme/typography.css`. Every screen explains itself and offers a next step. See `CLAUDE.md` §6.
 
 ## Sign-in
 

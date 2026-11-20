@@ -3,23 +3,24 @@ import {
   IonInput,
   IonInputPasswordToggle,
   IonItem,
+  IonLabel,
   IonList,
   IonSegment,
   IonSegmentButton,
-  IonLabel,
-  IonText,
   IonSpinner,
 } from '@ionic/react'
+import { DEFAULT_MIN_PASSWORD_LENGTH } from '@convex-dev/auth/methods/username-password'
 import {
   useSignInWithUsernamePassword,
   useSignUpWithUsernamePassword,
 } from '@convex-dev/auth/methods/username-password/react'
-import { DEFAULT_MIN_PASSWORD_LENGTH } from '@convex-dev/auth/methods/username-password'
 import { useRef, useState, type FormEvent } from 'react'
 import { api } from '../../../convex/_generated/api'
-import { LargeTitlePage } from '../../components/LargeTitlePage'
+import { SectionFooter } from '../../components/SectionFooter'
+import { inputValue } from '../../lib/forms'
 import { haptic } from '../../lib/haptics'
 import { toE164Ghana } from '../../lib/phone'
+import { AuthLayout } from './AuthLayout'
 
 type Mode = 'signIn' | 'signUp'
 
@@ -48,8 +49,6 @@ function messageFor(error: string, mode: Mode): string {
 export function SignInPage() {
   const [mode, setMode] = useState<Mode>('signIn')
   const [error, setError] = useState<string | null>(null)
-  // Read the fields at submit time: pressing Enter can submit before the last
-  // keystroke's input event has updated React state.
   const phoneRef = useRef<HTMLIonInputElement>(null)
   const passwordRef = useRef<HTMLIonInputElement>(null)
 
@@ -60,16 +59,14 @@ export function SignInPage() {
   async function submit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    const phone = String(phoneRef.current?.value ?? '')
-    const password = String(passwordRef.current?.value ?? '')
-    const username = toE164Ghana(phone)
+    const username = toE164Ghana(inputValue(phoneRef))
     if (username === null) {
       haptic('error')
       setError('Enter a Ghana mobile number, for example 024 123 4567.')
       return
     }
     const run = mode === 'signIn' ? signIn.signIn : signUp.signUp
-    const result = await run({ username, password })
+    const result = await run({ username, password: inputValue(passwordRef) })
     if (result.status === 'complete') {
       haptic('success')
     } else {
@@ -79,48 +76,47 @@ export function SignInPage() {
   }
 
   return (
-    <LargeTitlePage title="Stallo">
-      <div className="ion-padding-horizontal">
-        <IonSegment
-          value={mode}
-          onIonChange={(e) => {
-            setMode(e.detail.value as Mode)
-            setError(null)
-            haptic('light')
-          }}
-        >
-          <IonSegmentButton value="signIn">
-            <IonLabel>Sign in</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="signUp">
-            <IonLabel>Create account</IonLabel>
-          </IonSegmentButton>
-        </IonSegment>
-      </div>
+    <AuthLayout
+      title={mode === 'signIn' ? 'Welcome back' : 'Start selling on WhatsApp'}
+      subtitle="Orders, payments and deliveries from WhatsApp, in one place."
+    >
+      <IonSegment
+        value={mode}
+        onIonChange={(e) => {
+          setMode(e.detail.value as Mode)
+          setError(null)
+          haptic('light')
+        }}
+      >
+        <IonSegmentButton value="signIn">
+          <IonLabel>Sign in</IonLabel>
+        </IonSegmentButton>
+        <IonSegmentButton value="signUp">
+          <IonLabel>Create account</IonLabel>
+        </IonSegmentButton>
+      </IonSegment>
 
       <form onSubmit={submit} noValidate>
-        <IonList inset>
+        <IonList inset className="auth-list">
           <IonItem>
             <IonInput
+              ref={phoneRef}
               label="Phone"
               labelPlacement="fixed"
               type="tel"
               inputmode="tel"
               autocomplete="tel"
               placeholder="024 123 4567"
-              ref={phoneRef}
-              required
             />
           </IonItem>
           <IonItem>
             <IonInput
+              ref={passwordRef}
               label="Password"
               labelPlacement="fixed"
               type="password"
               autocomplete={mode === 'signIn' ? 'current-password' : 'new-password'}
-              placeholder={mode === 'signUp' ? `At least ${DEFAULT_MIN_PASSWORD_LENGTH} characters` : 'Required'}
-              ref={passwordRef}
-              required
+              placeholder={mode === 'signUp' ? `${DEFAULT_MIN_PASSWORD_LENGTH}+ characters` : 'Required'}
             >
               <IonInputPasswordToggle slot="end" />
             </IonInput>
@@ -128,27 +124,19 @@ export function SignInPage() {
         </IonList>
 
         {error ? (
-          <IonText color="danger">
-            <p className="list-footer text-footnote" role="alert">
-              {error}
-            </p>
-          </IonText>
+          <SectionFooter color="danger">{error}</SectionFooter>
         ) : (
-          <IonText color="medium">
-            <p className="list-footer text-footnote">
-              {mode === 'signIn'
-                ? 'Use the phone number you signed up with.'
-                : 'Use the phone number for your business.'}
-            </p>
-          </IonText>
+          <SectionFooter>
+            {mode === 'signIn'
+              ? 'Use the phone number you signed up with.'
+              : 'Use the phone number for your business. Free to start; you only pay a small fee on paid orders.'}
+          </SectionFooter>
         )}
 
-        <div className="ion-padding-horizontal">
-          <IonButton type="submit" expand="block" disabled={pending}>
-            {pending ? <IonSpinner name="crescent" /> : mode === 'signIn' ? 'Sign in' : 'Create account'}
-          </IonButton>
-        </div>
+        <IonButton type="submit" expand="block" disabled={pending}>
+          {pending ? <IonSpinner name="crescent" /> : mode === 'signIn' ? 'Sign in' : 'Create account'}
+        </IonButton>
       </form>
-    </LargeTitlePage>
+    </AuthLayout>
   )
 }

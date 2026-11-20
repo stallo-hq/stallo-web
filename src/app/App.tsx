@@ -4,7 +4,7 @@ import { useConvexAuth, useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { SetupBusinessPage } from '../features/auth/SetupBusinessPage'
 import { SignInPage } from '../features/auth/SignInPage'
-import { Tabs } from './Tabs'
+import { Shell } from './Shell'
 
 export function App() {
   const { isLoading, isAuthenticated } = useConvexAuth()
@@ -28,7 +28,7 @@ export function App() {
   } else {
     content = (
       <IonReactRouter>
-        <Tabs />
+        <Shell />
       </IonReactRouter>
     )
   }

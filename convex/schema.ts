@@ -26,6 +26,9 @@ export default defineSchema({
     whatsappPhoneNumberId: v.optional(v.string()),
     whatsappBusinessAccountId: v.optional(v.string()),
     paystackSubaccountCode: v.optional(v.string()),
+    // Pilot: sellers ask the Stallo team to connect WhatsApp / payouts with them.
+    whatsappSetupRequestedAt: v.optional(v.number()),
+    payoutsSetupRequestedAt: v.optional(v.number()),
     // Platform fee for this seller; falls back to the deployment default when unset.
     feePercent: v.optional(v.number()),
     feeFlatPesewas: v.optional(v.number()),
