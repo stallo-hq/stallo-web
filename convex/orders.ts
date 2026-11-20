@@ -1,3 +1,4 @@
+import { mapsUrl } from './lib/address'
 import { v } from 'convex/values'
 import { query } from './_generated/server'
 import { orderStatus, paymentStatus } from './lib/validators'
@@ -66,6 +67,10 @@ const detailView = v.object({
   feePesewas: v.number(),
   totalPesewas: v.number(),
   address: v.optional(v.string()),
+  digitalAddress: v.optional(v.string()),
+  hasPin: v.boolean(),
+  outsideDeliveryArea: v.boolean(),
+  recipient: v.union(v.null(), v.object({ name: v.optional(v.string()), phone: v.optional(v.string()) })),
   mapsUrl: v.optional(v.string()),
   paymentUrl: v.optional(v.string()),
   customer: v.object({ name: v.optional(v.string()), phone: v.string() }),
@@ -117,7 +122,11 @@ export const get = query({
       feePesewas: order.feePesewas,
       totalPesewas: order.totalPesewas,
       address: order.address,
-      mapsUrl: order.location ? `https://maps.google.com/?q=${order.location.lat},${order.location.lng}` : undefined,
+      digitalAddress: order.digitalAddress,
+      hasPin: order.location !== undefined,
+      outsideDeliveryArea: order.outsideDeliveryArea === true,
+      recipient: order.recipientName || order.recipientPhone ? { name: order.recipientName, phone: order.recipientPhone } : null,
+      mapsUrl: mapsUrl(order),
       paymentUrl: order.status === 'awaiting_payment' ? order.paymentUrl : undefined,
       customer: { name: customer?.name, phone: customer?.phone ?? '' },
       timeline: order.timeline,

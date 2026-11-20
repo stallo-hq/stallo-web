@@ -100,3 +100,17 @@ export async function verifyOtp(phone: string, code: string): Promise<OtpCheck> 
   }
   throw failure(status, data)
 }
+
+/**
+ * Sends a plain SMS (1 credit per part). Used for delivery codes to people who
+ * didn't place the order and so may not be on WhatsApp with the seller.
+ * In SMS_TEST_MODE nothing is sent.
+ */
+export async function sendSms(phone: string, message: string): Promise<void> {
+  if (smsTestMode()) return
+  const { apiKey, senderId } = config()
+  const { status, data } = await post('/api/v1/send', { sender: senderId, recipients: [toSasuSyncNumber(phone)], message }, apiKey)
+  // A queued send is accepted: SasuSync delivers it shortly. Resending would send it twice.
+  if (status >= 200 && status < 300 && data.success === true) return
+  throw failure(status, data)
+}

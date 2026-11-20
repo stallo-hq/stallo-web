@@ -8,6 +8,7 @@ export const LIMITS = {
   // GH₵ 0.01 to GH₵ 1,000,000.00
   pricePesewas: { min: 1, max: 100_000_000 },
   stock: { min: 0, max: 1_000_000 },
+  deliveryAreas: { min: 0, max: 300 },
 } as const
 
 export function cleanText(value: string, label: string, limits: { min: number; max: number }): string {

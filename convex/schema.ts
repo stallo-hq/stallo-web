@@ -61,6 +61,8 @@ export default defineSchema({
     // Platform fee for this seller; falls back to the deployment default when unset.
     feePercent: v.optional(v.number()),
     feeFlatPesewas: v.optional(v.number()),
+    // Free text, e.g. "Madina, Adenta, Legon, East Legon". Used to flag addresses outside it.
+    deliveryAreas: v.optional(v.string()),
   })
     .index('by_owner', ['ownerId'])
     .index('by_whatsapp_phone_number_id', ['whatsappPhoneNumberId']),
@@ -140,6 +142,13 @@ export default defineSchema({
     paymentStatus: paymentStatus,
     address: v.optional(v.string()),
     location: v.optional(v.object({ lat: v.number(), lng: v.number() })),
+    // Ghana Post digital address found in the address, e.g. GA-183-8164.
+    digitalAddress: v.optional(v.string()),
+    // When the order is for someone else.
+    recipientName: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
+    // The assistant thinks the address is outside the seller's delivery areas.
+    outsideDeliveryArea: v.optional(v.boolean()),
     deliveryId: v.optional(v.id('deliveries')),
     paymentUrl: v.optional(v.string()),
     note: v.optional(v.string()),

@@ -56,6 +56,51 @@ function BusinessCard({ name, phone }: { name: string; phone: string }) {
   )
 }
 
+function DeliveryAreasCard({ areas }: { areas: string }) {
+  const { updateDeliveryAreas } = useSettingsActions()
+  const [value, setValue] = useState(areas)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setBusy(true)
+    try {
+      await updateDeliveryAreas({ deliveryAreas: value })
+      toast.success(value.trim() ? 'Delivery areas saved' : 'Delivery areas cleared')
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card
+      title="Delivery areas"
+      description="Where you deliver. When a customer gives an address that looks outside these areas, Stallo tells them you will check, and flags the order for you."
+    >
+      <form onSubmit={save} noValidate className={styles.form}>
+        <Field
+          label="Areas you deliver to"
+          placeholder="Madina, Adenta, Legon, East Legon"
+          value={value}
+          maxLength={300}
+          onChange={(e) => setValue(e.target.value)}
+          error={error}
+          hint="Towns, suburbs or landmarks, separated by commas. Leave empty to accept any address."
+        />
+        <div className={styles.formActions}>
+          <Button type="submit" variant="dark" loading={busy} disabled={value.trim() === areas}>
+            Save
+          </Button>
+        </div>
+      </form>
+    </Card>
+  )
+}
+
 function ConnectionRow({ to, icon: Icon, title, text, connected }: {
   to: string
   icon: typeof MessageCircle
@@ -140,6 +185,7 @@ export function SettingsPage() {
       <div className={styles.stack}>
         {/* key: start fresh whenever the saved name changes */}
         <BusinessCard key={seller.businessName} name={seller.businessName} phone={seller.phone} />
+        <DeliveryAreasCard key={seller.deliveryAreas ?? ''} areas={seller.deliveryAreas ?? ''} />
 
         <Card title="Connections" description="What Stallo needs to take orders and pay you." flush>
           <ConnectionRow

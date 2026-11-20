@@ -180,11 +180,40 @@ export function OrderDetailPage() {
                   <a href={`tel:${order.customer.phone}`}>{formatGhanaPhone(order.customer.phone)}</a>
                 </dd>
               </div>
+              {order.recipient && (
+                <div>
+                  <dt>Receiver</dt>
+                  <dd>
+                    {order.recipient.name ?? 'Not named'}
+                    {order.recipient.phone && (
+                      <>
+                        {' · '}
+                        <a href={`tel:${order.recipient.phone}`}>{formatGhanaPhone(order.recipient.phone)}</a>
+                      </>
+                    )}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>Deliver to</dt>
                 <dd>{order.address ?? 'Not given yet'}</dd>
               </div>
+              {order.digitalAddress && (
+                <div>
+                  <dt>Digital address</dt>
+                  <dd>{order.digitalAddress}</dd>
+                </div>
+              )}
+              {order.address && (
+                <div>
+                  <dt>Map</dt>
+                  <dd>{order.hasPin ? 'Location pin shared' : order.digitalAddress ? 'From the digital address' : 'No pin shared: call to check the place'}</dd>
+                </div>
+              )}
             </dl>
+            {order.outsideDeliveryArea && (
+              <p className={styles.warning}>This address may be outside your delivery areas. Check with the customer before sending it out.</p>
+            )}
             <div className={styles.links}>
               <ButtonLink size="sm" variant="secondary" to={`https://wa.me/${order.customer.phone.replace('+', '')}`} external icon={<Phone size={15} />}>
                 WhatsApp
@@ -193,7 +222,7 @@ export function OrderDetailPage() {
                 <ButtonLink
                   size="sm"
                   variant="secondary"
-                  to={order.mapsUrl ?? `https://maps.google.com/?q=${encodeURIComponent(order.address ?? '')}`}
+                  to={order.mapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address ?? '')}`}
                   external
                   icon={<MapPin size={15} />}
                 >

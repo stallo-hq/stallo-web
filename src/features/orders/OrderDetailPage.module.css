@@ -218,3 +218,12 @@
 .attention span {
   flex: 1;
 }
+
+.warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--amber-soft);
+  color: var(--amber);
+  font-size: 14px;
+}

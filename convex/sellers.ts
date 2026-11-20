@@ -9,6 +9,7 @@ const sellerView = v.object({
   _id: v.id('sellers'),
   businessName: v.string(),
   phone: v.string(),
+  deliveryAreas: v.optional(v.string()),
   whatsappConnected: v.boolean(),
   whatsappDisplayPhone: v.optional(v.string()),
   payoutsConnected: v.boolean(),
@@ -28,6 +29,7 @@ export const mine = query({
       _id: seller._id,
       businessName: seller.businessName,
       phone: seller.phone,
+      deliveryAreas: seller.deliveryAreas,
       whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
       whatsappDisplayPhone: seller.whatsappDisplayPhone,
       payoutsConnected: seller.paystackSubaccountCode !== undefined,
@@ -72,6 +74,18 @@ export const updateBusinessName = mutation({
     const seller = await requireSeller(ctx)
     const businessName = cleanText(args.businessName, 'Business name', LIMITS.businessName)
     await ctx.db.patch(seller._id, { businessName })
+    return null
+  },
+})
+
+/** Where the seller delivers, in their own words. Empty = anywhere (no area check). */
+export const updateDeliveryAreas = mutation({
+  args: { deliveryAreas: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const seller = await requireSeller(ctx)
+    const deliveryAreas = cleanText(args.deliveryAreas, 'Delivery areas', LIMITS.deliveryAreas)
+    await ctx.db.patch(seller._id, { deliveryAreas: deliveryAreas || undefined })
     return null
   },
 })

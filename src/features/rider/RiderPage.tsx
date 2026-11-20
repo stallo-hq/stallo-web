@@ -87,6 +87,9 @@ export function RiderPage() {
     )
   }
 
+  const forSomeoneElse = Boolean(job.recipientName || job.recipientPhone)
+  const buyer = job.customerName ?? formatGhanaPhone(job.customerPhone)
+
   return (
     <Shell business={job.businessName}>
       <section className={styles.card}>
@@ -102,16 +105,39 @@ export function RiderPage() {
       </section>
 
       <section className={styles.card}>
-        <h2>Customer</h2>
-        <p className={styles.big}>{job.customerName ?? formatGhanaPhone(job.customerPhone)}</p>
+        {forSomeoneElse ? (
+          <>
+            <h2>Deliver to</h2>
+            <p className={styles.big}>{job.recipientName ?? (job.recipientPhone ? formatGhanaPhone(job.recipientPhone) : 'The receiver')}</p>
+            <p className={styles.muted}>Ordered by {buyer}. Either of them can give you the delivery code.</p>
+          </>
+        ) : (
+          <>
+            <h2>Customer</h2>
+            <p className={styles.big}>{buyer}</p>
+          </>
+        )}
         {job.address && <p>{job.address}</p>}
+        {job.digitalAddress && (
+          <p>
+            Ghana Post digital address: <strong>{job.digitalAddress}</strong>
+          </p>
+        )}
+        {job.address && !job.hasPin && !job.digitalAddress && (
+          <p className={styles.muted}>No map pin was shared. Call before you set off to check the exact place.</p>
+        )}
         <div className={styles.actions}>
-          <a className={styles.call} href={`tel:${job.customerPhone}`}>
-            <Phone size={17} /> Call customer
+          {forSomeoneElse && job.recipientPhone && (
+            <a className={styles.call} href={`tel:${job.recipientPhone}`}>
+              <Phone size={17} /> Call receiver
+            </a>
+          )}
+          <a className={forSomeoneElse && job.recipientPhone ? styles.secondary : styles.call} href={`tel:${job.customerPhone}`}>
+            <Phone size={17} /> {forSomeoneElse ? 'Call buyer' : 'Call customer'}
           </a>
           {job.mapsUrl && (
             <a className={styles.secondary} href={job.mapsUrl} target="_blank" rel="noopener noreferrer">
-              <MapPin size={17} /> Open map
+              <MapPin size={17} /> {job.hasPin ? 'Open map pin' : 'Search on map'}
             </a>
           )}
         </div>
@@ -119,7 +145,7 @@ export function RiderPage() {
 
       <section className={styles.card}>
         <h2>Confirm delivery</h2>
-        <p>When you hand over the order, ask the customer for their 4-digit code and enter it here.</p>
+        <p>When you hand over the order, ask for the 4-digit delivery code and enter it here.</p>
         <div className={styles.pin}>
           <CodeInput length={4} value={pin} onChange={setPin} onComplete={(c) => void submitPin(c)} autoFocus={false} disabled={busy} invalid={message?.tone === 'error'} />
         </div>

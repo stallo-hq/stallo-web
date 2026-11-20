@@ -21,6 +21,18 @@ export const Extraction = z.object({
     .describe('The complete basket after this message, or null if the message does not change the basket.'),
   address: z.string().nullable().describe('Delivery address or landmark if the customer gave one in this message, else null.'),
   customer_name: z.string().nullable(),
+  recipient_name: z
+    .string()
+    .nullable()
+    .describe('If the order is for someone else: the name of the person receiving it, as given in this message. Else null.'),
+  recipient_phone: z
+    .string()
+    .nullable()
+    .describe('If the order is for someone else: their phone number as written in this message. Else null.'),
+  outside_delivery_area: z
+    .boolean()
+    .nullable()
+    .describe('Only when this message gives an address and the business lists delivery areas: true if the address is clearly outside them, false if inside or unsure. Else null.'),
   unmatched: z.array(z.string()).describe('Things the customer asked for that are not in the product list.'),
   reply: z
     .string()
@@ -36,6 +48,8 @@ export type AssistantInput = {
   products: { id: string; name: string; price: string; available: boolean }[]
   basket: { product_id: string; name: string; quantity: number }[]
   address: string | null
+  recipient: string | null
+  deliveryAreas: string | null
   awaitingConfirmation: boolean
   history: { from: 'customer' | 'stallo'; text: string }[]
   message: string
@@ -53,12 +67,16 @@ Customers write in English, Ghanaian Pidgin, Twi, or a mix, often with typos and
 - "Cancel", "I no want again", "Mempɛ bio" → cancel.
 - "How much be the fried rice?", "Do you deliver to Kasoa?" → question.
 - "Hello", "Good morning" → greeting.
+- "It's for my sister Ama, 024 123 4567, she's at Adenta" → order with address "Adenta", recipient_name "Ama", recipient_phone "024 123 4567", items null.
+- "Deliver am give my mother, her number be 0551234567" → order with recipient_phone "0551234567", items null.
 
 Rules:
 - items is the whole basket after this message (existing basket plus changes), using product_id values from the product list only. Use null if the message does not change the basket.
 - Never invent products or prices. If they ask for something not on the list, put it in unmatched.
 - Quantities are whole numbers. "a", "one", "baako" = 1, "two", "mmienu" = 2, "three", "mmiɛnsa" = 3.
 - address: only what the customer said in this message, copied as written.
+- recipient_name and recipient_phone: only when the customer says the order goes to another person. Copy the number as written. Never use the customer's own name or number here.
+- outside_delivery_area: compare the address with the business's delivery areas. Ghanaian place names and landmarks count; a nearby suburb of a listed area is inside. Say true only when you are confident it is outside. null when no address was given or no areas are listed.
 - reply: only for question, greeting or other. Keep it to one or two short sentences, plain English, no emoji. You may quote prices from the product list. Never promise delivery times, discounts or anything not stated in the list. If you do not know, say the business will reply.
 - confidence: lower it when the message is ambiguous, when you are guessing a product match, or when you cannot tell what they want. Use 0.9 or above only when it is clear.`
 
@@ -84,6 +102,8 @@ export function buildUserMessage(input: AssistantInput): string {
     `Products:\n${products}`,
     `Current basket:\n${basket}`,
     `Delivery address so far: ${input.address ?? '(none)'}`,
+    `Receiver so far: ${input.recipient ?? 'the customer'}`,
+    `Business delivers to: ${input.deliveryAreas ?? '(not stated)'}`,
     `Waiting for the customer to confirm the order: ${input.awaitingConfirmation ? 'yes' : 'no'}`,
     `Recent conversation:\n${history}`,
     `New message from the customer:\n${input.message}`,
@@ -110,6 +130,9 @@ export function sanitize(raw: Extraction, productIds: ReadonlySet<string>): Extr
     items,
     address: clean(raw.address, 300),
     customer_name: clean(raw.customer_name, 80),
+    recipient_name: clean(raw.recipient_name, 80),
+    recipient_phone: clean(raw.recipient_phone, 30),
+    outside_delivery_area: typeof raw.outside_delivery_area === 'boolean' ? raw.outside_delivery_area : null,
     unmatched: raw.unmatched.map((u) => u.trim()).filter(Boolean).slice(0, 10),
     reply: clean(raw.reply, 600),
     confidence: Math.min(1, Math.max(0, Number.isFinite(raw.confidence) ? raw.confidence : 0)),

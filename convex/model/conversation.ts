@@ -3,10 +3,12 @@ import { internal } from '../_generated/api'
 import type { MutationCtx } from '../_generated/server'
 import type { Extraction } from '../integrations/assistant'
 import { decide, type PictureMatch } from '../integrations/vision'
+import { findDigitalAddress } from '../lib/address'
+import { toE164Ghana } from '../lib/phone'
 import { raiseAttention } from './attention'
 import { copy } from './copy'
 import { calculateFee, sellerFeeConfig } from './fees'
-import { nextOrderNumber, subtotalOf, transition } from './orders'
+import { nextOrderNumber, orderLabel, subtotalOf, transition } from './orders'
 import { queueInOrder } from './outbound'
 
 /**
@@ -202,18 +204,23 @@ async function handleText(
   const order = state.order
   const waitingForAddress = order !== null && order.status === 'draft' && order.items.length > 0 && !order.address
   if (waitingForAddress && extraction.items === null && extraction.intent !== 'cancel' && extraction.intent !== 'greeting') {
-    await updateBasket(ctx, state, { items: null, address: extraction.address ?? input.text.trim().slice(0, 300), unmatched: [] })
+    await updateBasket(ctx, state, {
+      ...deliveryDetails(extraction),
+      items: null,
+      address: extraction.address ?? input.text.trim().slice(0, 300),
+      unmatched: [],
+    })
     return
   }
-  // An address given alongside a question or remark still belongs on the open order.
+  // An address or receiver given alongside a question or remark still belongs on the open order.
   if (
     order !== null &&
     order.status !== 'awaiting_payment' &&
-    extraction.address &&
+    (extraction.address || extraction.recipient_name || extraction.recipient_phone) &&
     (extraction.intent === 'question' || extraction.intent === 'other') &&
     extraction.confidence >= input.threshold
   ) {
-    await updateBasket(ctx, state, { items: extraction.items, address: extraction.address, unmatched: extraction.unmatched })
+    await updateBasket(ctx, state, { ...deliveryDetails(extraction), items: extraction.items, unmatched: extraction.unmatched })
     return
   }
 
@@ -269,13 +276,18 @@ async function handleText(
         })
         return
       }
-      await updateBasket(ctx, state, {
-        items: extraction.items,
-        address: extraction.address,
-        unmatched: extraction.unmatched,
-      })
+      await updateBasket(ctx, state, { ...deliveryDetails(extraction), items: extraction.items, unmatched: extraction.unmatched })
       return
     }
+  }
+}
+
+/** The delivery details the assistant read from a message. */
+function deliveryDetails(extraction: Extraction) {
+  return {
+    address: extraction.address,
+    recipient: { name: extraction.recipient_name, phone: extraction.recipient_phone },
+    outsideArea: extraction.outside_delivery_area,
   }
 }
 
@@ -290,6 +302,8 @@ async function updateBasket(
     items: { product_id: string; quantity: number }[] | null
     address: string | null
     location?: { lat: number; lng: number }
+    recipient?: { name: string | null; phone: string | null }
+    outsideArea?: boolean | null
     unmatched: string[]
   },
 ) {
@@ -328,6 +342,10 @@ async function updateBasket(
   }
   if (change.address) await ctx.db.patch(customer._id, { lastAddress: change.address })
 
+  const previous = order ?? state.order
+  const addressChanged = Boolean(change.address) && change.address !== previous?.address
+  const delivery = deliveryFields(state, previous, change, address, addressChanged)
+
   const subtotal = subtotalOf(items)
   const fields = {
     items,
@@ -335,7 +353,7 @@ async function updateBasket(
     feePesewas: 0,
     totalPesewas: subtotal,
     address,
-    ...(change.location ? { location: change.location } : {}),
+    ...delivery.fields,
   }
 
   if (order === null) {
@@ -356,7 +374,16 @@ async function updateBasket(
   }
 
   if (unavailable.length > 0) state.replies.push(copy.unavailable(unavailable))
-  state.replies.push(...notes)
+  state.replies.push(...notes, ...delivery.notes)
+  if (delivery.newlyOutside) {
+    await raiseAttention(ctx, {
+      sellerId: seller._id,
+      type: 'low_confidence',
+      orderId: order._id,
+      summary: `Order ${orderLabel(order)} for ${customer.name ?? customer.phone} may be outside your delivery areas: “${(address ?? '').slice(0, 120)}”. Check before sending it out.`,
+      notify: true,
+    })
+  }
 
   let conversationState: Doc<'conversations'>['state'] = 'collecting'
   if (items.length === 0) {
@@ -373,6 +400,50 @@ async function updateBasket(
 
   state.order = order
   await ctx.db.patch(state.conversation._id, { state: conversationState, draftOrderId: order._id })
+}
+
+/**
+ * Works out the receiver, digital address, map pin and delivery-area flag for
+ * an order after a change. Returns the fields to save and any notes for the customer.
+ */
+function deliveryFields(
+  state: State,
+  previous: Doc<'orders'> | null,
+  change: {
+    location?: { lat: number; lng: number }
+    recipient?: { name: string | null; phone: string | null }
+    outsideArea?: boolean | null
+  },
+  address: string | undefined | null,
+  addressChanged: boolean,
+) {
+  const notes: string[] = []
+  const fields: Partial<Pick<Doc<'orders'>, 'location' | 'digitalAddress' | 'recipientName' | 'recipientPhone' | 'outsideDeliveryArea'>> = {}
+
+  // A new typed address replaces an old map pin; a shared pin is kept.
+  if (change.location) fields.location = change.location
+  else if (addressChanged) fields.location = undefined
+
+  const digital = address ? findDigitalAddress(address) : null
+  fields.digitalAddress = digital ?? (addressChanged ? undefined : previous?.digitalAddress)
+
+  if (change.recipient?.name) fields.recipientName = change.recipient.name
+  if (change.recipient?.phone) {
+    const phone = toE164Ghana(change.recipient.phone)
+    if (phone === null) notes.push(copy.recipientPhoneUnreadable(change.recipient.name ?? previous?.recipientName ?? null))
+    else if (phone !== state.customer.phone) fields.recipientPhone = phone
+  }
+
+  let newlyOutside = false
+  if (addressChanged) {
+    const outside = Boolean(state.seller.deliveryAreas) && !change.location && change.outsideArea === true
+    fields.outsideDeliveryArea = outside || undefined
+    if (outside) {
+      notes.push(copy.outsideDeliveryArea(state.seller.businessName, state.seller.deliveryAreas!))
+      newlyOutside = previous?.outsideDeliveryArea !== true
+    }
+  }
+  return { fields, notes, newlyOutside }
 }
 
 async function confirmOrder(ctx: MutationCtx, state: State) {

@@ -3,8 +3,9 @@ import { api } from '../../../convex/_generated/api'
 
 export function useSettingsActions() {
   const updateBusinessName = useMutation(api.sellers.updateBusinessName)
+  const updateDeliveryAreas = useMutation(api.sellers.updateDeliveryAreas)
   const changePassword = useMutation(api.auth.changePassword)
-  return { updateBusinessName, changePassword }
+  return { updateBusinessName, updateDeliveryAreas, changePassword }
 }
 
 /** Which integrations are switched on for this Stallo deployment. */

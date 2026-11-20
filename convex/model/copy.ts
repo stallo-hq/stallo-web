@@ -1,5 +1,6 @@
 import type { Doc } from '../_generated/dataModel'
 import { formatCedis } from '../lib/money'
+import { formatGhanaPhone } from '../lib/phone'
 import { orderLabel } from './orders'
 
 /**
@@ -9,7 +10,15 @@ import { orderLabel } from './orders'
  */
 
 type Product = Pick<Doc<'products'>, 'name' | 'pricePesewas'>
-type Order = Pick<Doc<'orders'>, '_id' | 'number' | 'items' | 'subtotalPesewas' | 'totalPesewas' | 'address'>
+type Order = Pick<Doc<'orders'>, '_id' | 'number' | 'items' | 'subtotalPesewas' | 'totalPesewas' | 'address'> &
+  Partial<Pick<Doc<'orders'>, 'recipientName' | 'recipientPhone' | 'location' | 'digitalAddress'>>
+
+/** "Ama (024 123 4567)", "Ama", "024 123 4567", or null when the buyer receives it. */
+export function receiverLabel(order: Pick<Order, 'recipientName' | 'recipientPhone'>): string | null {
+  const phone = order.recipientPhone ? formatGhanaPhone(order.recipientPhone) : null
+  if (order.recipientName && phone) return `${order.recipientName} (${phone})`
+  return order.recipientName ?? phone
+}
 
 export function catalogue(products: Product[], limit = 12): string {
   if (products.length === 0) return ''
@@ -73,10 +82,23 @@ export const copy = {
   },
 
   confirm(order: Order, usingSavedAddress: boolean) {
-    const to = usingSavedAddress
-      ? `Delivery to: ${order.address}\n(Reply with a new address to change it.)`
-      : `Delivery to: ${order.address}`
-    return `Please confirm your order:\n\n${copy.orderLines(order)}\n${to}\n\nReply YES to confirm, or tell me what to change.`
+    const lines = [`Delivery to: ${order.address}`]
+    const receiver = receiverLabel(order)
+    if (receiver) lines.push(`Receiver: ${receiver}`)
+    if (usingSavedAddress) lines.push('(Reply with a new address to change it.)')
+    const pinTip =
+      !order.location && !order.digitalAddress
+        ? '\n\nTo help the rider find the place, you can also share the location pin (tap + or the clip icon, then Location) or a Ghana Post digital address like GA-123-4567.'
+        : ''
+    return `Please confirm your order:\n\n${copy.orderLines(order)}\n${lines.join('\n')}${pinTip}\n\nReply YES to confirm, or tell me what to change.`
+  },
+
+  recipientPhoneUnreadable(name: string | null) {
+    return `I couldn't read ${name ? `${name}'s` : 'the receiver’s'} phone number. Please send it like 024 123 4567.`
+  },
+
+  outsideDeliveryArea(business: string, areas: string) {
+    return `Note: ${business} usually delivers to ${areas}. They will check whether they can reach this address and let you know.`
   },
 
   unavailable(names: string[]) {
@@ -119,6 +141,12 @@ export const copy = {
     return `Your order ${orderLabel(order)} from ${business} is on the way with ${riderName}.\n\nYour delivery code is ${pin}. Give it to the rider only when you have your order.`
   },
 
+  /** SMS to the person receiving an order someone else placed. */
+  recipientPin(business: string, order: Order, buyer: string, riderName: string, pin: string) {
+    const hello = order.recipientName ? `Hello ${order.recipientName}. ` : ''
+    return `${hello}${buyer} ordered from ${business} for you (order ${orderLabel(order)}). ${riderName} is bringing it. Your delivery code is ${pin}. Give it to the rider only when you have the order.`
+  },
+
   delivered(business: string, order: Order) {
     return `Your order ${orderLabel(order)} from ${business} has been delivered. Thank you for buying from us.`
   },
@@ -134,7 +162,10 @@ export const copy = {
   },
 
   riderJob(business: string, order: Order, customer: string, link: string) {
-    return `New delivery for ${business}: order ${orderLabel(order)}.\nCustomer: ${customer}\nAddress: ${order.address ?? 'ask the customer'}\n\nOpen this page for details and to confirm delivery:\n${link}\n\nWhen you hand over the order, ask the customer for their 4-digit code and send it here or on that page.`
+    const receiver = receiverLabel(order)
+    const who = receiver ? `Deliver to: ${receiver}\nOrdered by: ${customer}` : `Customer: ${customer}`
+    const digital = order.digitalAddress ? `\nDigital address: ${order.digitalAddress}` : ''
+    return `New delivery for ${business}: order ${orderLabel(order)}.\n${who}\nAddress: ${order.address ?? 'ask the customer'}${digital}\n\nOpen this page for details and to confirm delivery:\n${link}\n\nWhen you hand over the order, ask for the 4-digit delivery code and send it here or on that page.`
   },
 
   riderDelivered(order: Order) {

@@ -16,7 +16,7 @@ const CUSTOMER = '+233201112222'
 const RIDER = '+233271234567'
 
 function answer(partial: Partial<Extraction>): Extraction {
-  return { intent: 'order', items: null, address: null, customer_name: null, unmatched: [], reply: null, confidence: 0.95, ...partial }
+  return { intent: 'order', items: null, address: null, customer_name: null, recipient_name: null, recipient_phone: null, outside_delivery_area: null, unmatched: [], reply: null, confidence: 0.95, ...partial }
 }
 
 let messageCounter = 0
@@ -75,6 +75,7 @@ async function world() {
         : { messages: [{ id: `wamid.out.${Math.random()}` }] },
     'lookaside.fbsbx.com/': () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { headers: { 'content-type': 'image/jpeg' } }),
     'api.anthropic.com/v1/messages': () => claudeAnswer(answers.shift() ?? answer({ intent: 'other', confidence: 0.2 })),
+    'sms.sasusync.com/api/v1/send': () => ({ success: true, data: { status: 'queued' } }),
     'api.paystack.co/transaction/initialize': (_url, init) => {
       const body = JSON.parse(String(init?.body)) as { reference: string; amount: string }
       paystack.amount = Number(body.amount)
@@ -103,6 +104,13 @@ beforeEach(() => {
   vi.stubEnv('PLATFORM_FEE_FLAT_PESEWAS', '0')
   vi.stubEnv('SITE_URL', 'https://stallo.test')
 })
+
+/** Real SMS sending (to the fake SasuSync) after the seller has signed up in test mode. */
+function realSms(apiKey = 'sms-key') {
+  vi.stubEnv('SMS_TEST_MODE', '')
+  vi.stubEnv('SASUSYNC_API_KEY', apiKey)
+  vi.stubEnv('SASUSYNC_SENDER_ID', 'Stallo')
+}
 
 afterEach(() => {
   vi.useRealTimers()
@@ -249,7 +257,7 @@ describe('seller isolation', () => {
 })
 
 /** Puts a paid order for 2 × the product straight into the database. */
-async function paidOrder(t: T, productId: Id<'products'>) {
+async function paidOrder(t: T, productId: Id<'products'>, extra: { recipientName?: string; recipientPhone?: string } = {}) {
   return t.run(async (ctx) => {
     const product = (await ctx.db.get(productId))!
     await ctx.db.patch(productId, { stock: product.stock - 2 }) // as payment would
@@ -263,6 +271,7 @@ async function paidOrder(t: T, productId: Id<'products'>) {
       feePesewas: 260,
       totalPesewas: 13000,
       address: 'Madina',
+      ...extra,
       status: 'paid',
       paymentStatus: 'paid',
       timeline: [],
@@ -380,5 +389,101 @@ describe('customer sends a picture', () => {
     await settle(t)
     const overview = await ama.query(api.dashboard.today, {})
     expect(overview!.attention.some((a) => a.imageUrl !== null)).toBe(true)
+  })
+})
+
+describe('ordering for someone else', () => {
+  it('keeps the receiver on the order and texts them the delivery code', async () => {
+    const { t, ama, productId, answers, order, sent, calls } = await world()
+    realSms()
+    answers.push(
+      answer({
+        items: [{ product_id: productId, quantity: 1 }],
+        address: 'Adenta, GA-183-8164',
+        recipient_name: 'Akos',
+        recipient_phone: '024 555 1234',
+      }),
+    )
+    await whatsappWebhook(t, 'One jollof for my sister Akos, 024 555 1234, Adenta GA-183-8164')
+    await settle(t)
+    const o = await order()
+    expect(o).toMatchObject({
+      status: 'awaiting_confirmation',
+      recipientName: 'Akos',
+      recipientPhone: '+233245551234',
+      digitalAddress: 'GA-183-8164',
+    })
+    const summary = (await sent()).find((m) => m.text?.includes('Please confirm'))!.text!
+    expect(summary).toContain('Receiver: Akos (024 555 1234)')
+    expect(summary).not.toContain('location pin') // the digital address is enough
+
+    // Paid and sent out: the buyer gets the code on WhatsApp, the receiver by SMS.
+    await t.run((ctx) => ctx.db.patch(o._id, { status: 'paid', paymentStatus: 'paid' }))
+    await ama.action(api.deliveries.dispatch, { orderId: o._id, riderName: 'Yaw', riderPhone: '027 123 4567' })
+    await settle(t)
+    const buyerText = (await sent()).find((m) => m.recipient === CUSTOMER && m.text?.includes('delivery code'))!.text!
+    const pin = /delivery code is (\d{4})/.exec(buyerText)![1]
+    const sms = calls.filter((c) => c.url.includes('sms.sasusync.com/api/v1/send'))
+    expect(sms).toHaveLength(1)
+    expect(sms[0].body).toMatchObject({ sender: 'Stallo', recipients: ['233245551234'] })
+    expect((sms[0].body as { message: string }).message).toContain(`Your delivery code is ${pin}`)
+    const riderText = (await sent()).find((m) => m.recipient === RIDER)!.text!
+    expect(riderText).toContain('Deliver to: Akos (024 555 1234)')
+    expect(riderText).toContain('Digital address: GA-183-8164')
+
+    const token = /\/r\/([0-9a-f]{64})/.exec(riderText)![1]
+    const job = await t.query(api.deliveries.riderJob, { token })
+    expect(job).toMatchObject({ recipientName: 'Akos', recipientPhone: '+233245551234', digitalAddress: 'GA-183-8164', hasPin: false })
+    expect(job!.mapsUrl).toContain('GA-183-8164')
+  })
+
+  it('tells the seller when the code SMS cannot be sent', async () => {
+    const { t, ama, productId } = await world()
+    realSms('')
+    const orderId = await paidOrder(t, productId, { recipientName: 'Akos', recipientPhone: '+233245551234' })
+    await ama.action(api.deliveries.dispatch, { orderId, riderName: 'Yaw', riderPhone: '027 123 4567' })
+    await settle(t)
+    const items = await t.run((ctx) => ctx.db.query('attentionItems').collect())
+    expect(items.some((i) => i.type === 'message_failed' && i.orderId === orderId)).toBe(true)
+  })
+
+  it('asks again when the receiver’s number is not a Ghana mobile number', async () => {
+    const { t, productId, answers, order, sent } = await world()
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }], address: 'Legon', recipient_name: 'Akos', recipient_phone: '12345' }))
+    await whatsappWebhook(t, 'Jollof for Akos at Legon, her number 12345')
+    await settle(t)
+    expect((await order()).recipientPhone).toBeUndefined()
+    expect((await sent()).some((m) => m.text?.includes("couldn't read Akos's phone number"))).toBe(true)
+  })
+})
+
+describe('checking the address', () => {
+  it('asks for a location pin after a typed address', async () => {
+    const { t, productId, answers, sent } = await world()
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }], address: 'Madina, near the zongo junction' }))
+    await whatsappWebhook(t, 'One jollof to Madina zongo junction')
+    await settle(t)
+    expect((await sent()).find((m) => m.text?.includes('Please confirm'))!.text).toContain('share the location pin')
+  })
+
+  it('flags an address outside the seller’s delivery areas', async () => {
+    const { t, sellerId, productId, answers, order, sent } = await world()
+    await t.run((ctx) => ctx.db.patch(sellerId, { deliveryAreas: 'Madina, Adenta, Legon' }))
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }], address: 'Takoradi market circle', outside_delivery_area: true }))
+    await whatsappWebhook(t, 'One jollof to Takoradi market circle')
+    await settle(t)
+    const o = await order()
+    expect(o.outsideDeliveryArea).toBe(true)
+    expect((await sent()).some((m) => m.text?.includes('usually delivers to Madina, Adenta, Legon'))).toBe(true)
+    const items = await t.run((ctx) => ctx.db.query('attentionItems').collect())
+    expect(items.filter((i) => i.orderId === o._id && i.summary.includes('outside your delivery areas'))).toHaveLength(1)
+  })
+
+  it('ignores the area check when the seller has not set areas', async () => {
+    const { t, productId, answers, order } = await world()
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }], address: 'Takoradi', outside_delivery_area: true }))
+    await whatsappWebhook(t, 'One jollof to Takoradi')
+    await settle(t)
+    expect((await order()).outsideDeliveryArea).toBeUndefined()
   })
 })

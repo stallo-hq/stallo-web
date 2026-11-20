@@ -145,3 +145,8 @@
   font-weight: 400;
   letter-spacing: -0.03em;
 }
+
+.muted {
+  color: var(--text-2);
+  font-size: 14px;
+}

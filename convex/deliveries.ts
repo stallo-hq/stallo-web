@@ -1,15 +1,41 @@
 import { ConvexError, v } from 'convex/values'
 import { internal } from './_generated/api'
 import type { Doc, Id } from './_generated/dataModel'
-import { action, internalAction, internalMutation, internalQuery, mutation, query } from './_generated/server'
+import { action, internalAction, internalMutation, internalQuery, mutation, query, type MutationCtx } from './_generated/server'
+import { mapsUrl } from './lib/address'
 import { toE164Ghana } from './lib/phone'
 import { assertOwned, requireSeller } from './model/auth'
-import { copy } from './model/copy'
+import { copy, receiverLabel } from './model/copy'
 import { randomDigits, randomToken, sha256 } from './model/crypto'
 import { PIN_LENGTH, checkPin, hashPin, markDeliveryFailed, restock, MAX_PIN_ATTEMPTS } from './model/delivery'
 import { orderLabel, transition } from './model/orders'
 import { queueMessage } from './model/outbound'
 import { cleanText } from './model/validation'
+
+/**
+ * Sends the delivery code to the buyer on WhatsApp and, when the order is for
+ * someone else, to the receiver by SMS (they may never have messaged the seller).
+ */
+async function sendDeliveryCode(
+  ctx: MutationCtx,
+  { seller, order, customer, riderName, pin }: { seller: Doc<'sellers'>; order: Doc<'orders'>; customer: Doc<'customers'>; riderName: string; pin: string },
+) {
+  await queueMessage(ctx, {
+    sellerId: seller._id,
+    to: customer.phone,
+    orderId: order._id,
+    text: copy.deliveryPin(seller.businessName, order, riderName, pin),
+    template: { name: 'stallo_delivery_pin', params: [seller.businessName, orderLabel(order), riderName, pin] },
+  })
+  if (order.recipientPhone && order.recipientPhone !== customer.phone) {
+    await ctx.scheduler.runAfter(0, internal.sms.sendDeliveryCode, {
+      sellerId: seller._id,
+      orderId: order._id,
+      to: order.recipientPhone,
+      text: copy.recipientPin(seller.businessName, order, customer.name ?? 'Someone', riderName, pin),
+    })
+  }
+}
 
 function riderLink(token: string): string {
   const site = (process.env.SITE_URL ?? '').replace(/\/$/, '')
@@ -74,15 +100,11 @@ export const applyDispatch = internalMutation({
     })
     const dispatched = await transition(ctx, order, 'dispatched', { deliveryId, note: `With ${riderName}` })
 
-    await queueMessage(ctx, {
-      sellerId: seller._id,
-      to: customer.phone,
-      orderId: order._id,
-      text: copy.deliveryPin(seller.businessName, dispatched, riderName, args.pin),
-      template: { name: 'stallo_delivery_pin', params: [seller.businessName, orderLabel(order), riderName, args.pin] },
-    })
+    await sendDeliveryCode(ctx, { seller, order: dispatched, customer, riderName, pin: args.pin })
     const link = riderLink(args.token)
     const customerLabel = customer.name ? `${customer.name} (${customer.phone})` : customer.phone
+    const receiver = receiverLabel(order)
+    const who = receiver ? `${receiver}, ordered by ${customerLabel}` : customerLabel
     await queueMessage(ctx, {
       sellerId: seller._id,
       to: riderPhone,
@@ -90,7 +112,7 @@ export const applyDispatch = internalMutation({
       text: copy.riderJob(seller.businessName, dispatched, customerLabel, link),
       template: {
         name: 'stallo_rider_job',
-        params: [seller.businessName, orderLabel(order), customerLabel, order.address ?? 'Call the customer', link],
+        params: [seller.businessName, orderLabel(order), who, order.address ?? 'Call the customer', link],
       },
     })
     return null
@@ -145,7 +167,11 @@ export const riderJob = query({
       items: v.array(v.object({ name: v.string(), qty: v.number() })),
       customerName: v.optional(v.string()),
       customerPhone: v.string(),
+      recipientName: v.optional(v.string()),
+      recipientPhone: v.optional(v.string()),
       address: v.optional(v.string()),
+      digitalAddress: v.optional(v.string()),
+      hasPin: v.boolean(),
       mapsUrl: v.optional(v.string()),
       riderName: v.string(),
       status: v.union(v.literal('dispatched'), v.literal('delivered'), v.literal('failed'), v.literal('returned')),
@@ -174,13 +200,12 @@ export const riderJob = query({
       items: order.items.map(({ name, qty }) => ({ name, qty })),
       customerName: open ? customer.name : undefined,
       customerPhone: open ? customer.phone : '',
+      recipientName: open ? order.recipientName : undefined,
+      recipientPhone: open ? order.recipientPhone : undefined,
       address: open ? order.address : undefined,
-      mapsUrl:
-        open && order.location
-          ? `https://maps.google.com/?q=${order.location.lat},${order.location.lng}`
-          : open && order.address
-            ? `https://maps.google.com/?q=${encodeURIComponent(order.address)}`
-            : undefined,
+      digitalAddress: open ? order.digitalAddress : undefined,
+      hasPin: open && order.location !== undefined,
+      mapsUrl: open ? mapsUrl(order) : undefined,
       riderName: delivery.riderName,
       status: delivery.status,
       attemptsLeft: Math.max(0, MAX_PIN_ATTEMPTS - delivery.attempts),
@@ -262,13 +287,7 @@ export const applyNewPin = internalMutation({
     const seller = (await ctx.db.get(order.sellerId))!
     const customer = (await ctx.db.get(order.customerId))!
     await ctx.db.patch(deliveryId, { pinHash, attempts: 0 })
-    await queueMessage(ctx, {
-      sellerId: seller._id,
-      to: customer.phone,
-      orderId: order._id,
-      text: copy.deliveryPin(seller.businessName, order, delivery.riderName, pin),
-      template: { name: 'stallo_delivery_pin', params: [seller.businessName, orderLabel(order), delivery.riderName, pin] },
-    })
+    await sendDeliveryCode(ctx, { seller, order, customer, riderName: delivery.riderName, pin })
     return null
   },
 })
