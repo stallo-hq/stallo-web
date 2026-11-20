@@ -1,9 +1,10 @@
 import { v } from 'convex/values'
 import { internal } from './_generated/api'
-import type { Doc } from './_generated/dataModel'
+import type { Doc, Id } from './_generated/dataModel'
 import { internalAction, internalMutation, internalQuery } from './_generated/server'
 import { confidenceThreshold, extract, type AssistantInput } from './integrations/assistant'
-import { messageText, type InboundWhatsAppMessage } from './integrations/whatsapp'
+import { matchPicture, visionConfigured, type CatalogueItem, type Picture, type PictureMatch } from './integrations/vision'
+import { downloadMedia, messageText, platformToken, type InboundWhatsAppMessage } from './integrations/whatsapp'
 import { formatCedis } from './lib/money'
 import { toE164 } from './lib/phone'
 import { raiseAttention } from './model/attention'
@@ -113,6 +114,15 @@ type Context =
   | { kind: 'ignore' }
   | { kind: 'rider_pin'; deliveryId: Doc<'deliveries'>['_id']; pin: string }
   | { kind: 'media'; text: string; mediaType: string }
+  | {
+      kind: 'image'
+      text: string
+      caption: string | null
+      whatsappMediaId: string
+      storedMediaId: Id<'_storage'> | null
+      sellerToken: string | null
+      products: CatalogueItem[]
+    }
   | { kind: 'location'; text: string; address: string; location: { lat: number; lng: number } }
   | { kind: 'text'; text: string; assistant: AssistantInput }
 
@@ -138,6 +148,30 @@ export const context = internalQuery({
         .order('desc')
         .first()
       if (delivery) return { kind: 'rider_pin', deliveryId: delivery._id, pin }
+    }
+
+    const image = (raw as { image?: { id?: string; caption?: string } }).image
+    if (raw.type === 'image' && image?.id) {
+      const products = await ctx.db
+        .query('products')
+        .withIndex('by_seller', (q) => q.eq('sellerId', seller._id))
+        .take(200)
+      const secret = await ctx.db
+        .query('sellerSecrets')
+        .withIndex('by_seller', (q) => q.eq('sellerId', seller._id))
+        .unique()
+      const caption = image.caption?.trim() || null
+      return {
+        kind: 'image',
+        text: caption ? `[picture] ${caption}` : '[picture]',
+        caption,
+        whatsappMediaId: image.id,
+        storedMediaId: message.mediaId ?? null,
+        sellerToken: secret?.whatsappToken ?? null,
+        products: products
+          .filter((p) => p.active)
+          .map((p) => ({ id: p._id, name: p.name, price: formatCedis(p.pricePesewas), photo: p.photoDescription ?? null })),
+      }
     }
 
     if (raw.type === 'location' && raw.location) {
@@ -205,6 +239,23 @@ const extraction = v.object({
   confidence: v.number(),
 })
 
+const pictureMatch = v.object({
+  description: v.string(),
+  text_in_image: v.union(v.null(), v.string()),
+  matches: v.array(v.object({ product_id: v.string(), confidence: v.number() })),
+})
+
+/** Keeps a copy of the customer's picture with the message, so retries don't download it again. */
+export const attachMedia = internalMutation({
+  args: { id: v.id('inboundMessages'), mediaId: v.id('_storage') },
+  returns: v.null(),
+  handler: async (ctx, { id, mediaId }) => {
+    const message = await ctx.db.get(id)
+    if (message && !message.mediaId) await ctx.db.patch(id, { mediaId })
+    return null
+  },
+})
+
 /** Applies the result of processing. Exactly once: does nothing if the message is no longer pending. */
 export const apply = internalMutation({
   args: {
@@ -218,6 +269,7 @@ export const apply = internalMutation({
         location: v.object({ lat: v.number(), lng: v.number() }),
       }),
       v.object({ kind: v.literal('media'), text: v.string(), mediaType: v.string() }),
+      v.object({ kind: v.literal('image'), text: v.string(), match: v.union(v.null(), pictureMatch) }),
     ),
   },
   returns: v.null(),
@@ -267,6 +319,28 @@ export const processMessage = internalAction({
         case 'rider_pin':
           await ctx.runMutation(internal.inbound.applyRiderPin, { id, deliveryId: c.deliveryId, pin: c.pin })
           return null
+        case 'image': {
+          let picture: Picture | null = null
+          if (c.storedMediaId) {
+            const blob = await ctx.storage.get(c.storedMediaId)
+            if (blob) picture = { bytes: new Uint8Array(await blob.arrayBuffer()), mimeType: blob.type || 'image/jpeg' }
+          } else {
+            // A failed download throws, so the message is retried like any other.
+            picture = await downloadMedia(c.whatsappMediaId, c.sellerToken ?? platformToken())
+            const mediaId = await ctx.storage.store(new Blob([new Uint8Array(picture.bytes)], { type: picture.mimeType }))
+            await ctx.runMutation(internal.inbound.attachMedia, { id, mediaId })
+          }
+          let match: PictureMatch | null = null
+          if (picture && visionConfigured() && c.products.length > 0) {
+            try {
+              match = await matchPicture(picture, c.products, c.caption)
+            } catch {
+              match = null // The seller sees the picture under Needs attention instead.
+            }
+          }
+          await ctx.runMutation(internal.inbound.apply, { id, input: { kind: 'image', text: c.text, match } })
+          return null
+        }
         case 'media':
           await ctx.runMutation(internal.inbound.apply, { id, input: { kind: 'media', text: c.text, mediaType: c.mediaType } })
           return null

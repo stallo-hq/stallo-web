@@ -177,6 +177,11 @@ export function OverviewPage() {
                   <AlertTriangle size={17} />
                   <div>
                     <strong>{a.summary}</strong>
+                    {a.imageUrl && (
+                      <a href={a.imageUrl} target="_blank" rel="noopener noreferrer" className={styles.attentionImage}>
+                        <img src={a.imageUrl} alt="Picture the customer sent" loading="lazy" />
+                      </a>
+                    )}
                     <span>
                       {formatShortDateTime(a.createdAt)}
                       {a.orderId && (

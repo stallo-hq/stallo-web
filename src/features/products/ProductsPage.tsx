@@ -16,7 +16,7 @@ import styles from './ProductsPage.module.css'
 import { LOW_STOCK, stockStatus, useProducts, type Product } from './useProducts'
 
 export function ProductsPage() {
-  const { products, create, update, remove } = useProducts()
+  const { products, create, update, remove, uploadPhoto } = useProducts()
   const [search, setSearch] = useState('')
   // `product` stays set while the dialog animates closed, so its title doesn't flicker.
   // `version` gives each opening a fresh form.
@@ -110,7 +110,9 @@ export function ProductsPage() {
                 return (
                   <div key={p._id} className={styles.row} role="row">
                     <button type="button" className={styles.name} onClick={() => openEditor(p)} role="cell">
-                      <span className={styles.thumb}>{p.name.slice(0, 1).toUpperCase()}</span>
+                      <span className={styles.thumb}>
+                        {p.photoUrl ? <img src={p.photoUrl} alt="" loading="lazy" /> : p.name.slice(0, 1).toUpperCase()}
+                      </span>
                       <span className={p.active ? undefined : styles.hiddenName}>{p.name}</span>
                     </button>
                     <span role="cell">
@@ -153,6 +155,7 @@ export function ProductsPage() {
         key={editor.version}
         open={editor.open}
         product={editor.product}
+        uploadPhoto={uploadPhoto}
         onOpenChange={(open) => setEditor((e) => ({ ...e, open }))}
         onSave={async (input) => {
           if (editor.product) {

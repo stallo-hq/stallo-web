@@ -66,10 +66,14 @@ async function world() {
     return ctx.db.insert('products', { sellerId, name: 'Jollof with chicken', pricePesewas: 6500, stock: 5, active: true })
   })
 
-  const answers: Extraction[] = []
+  const answers: unknown[] = []
   const paystack = { amount: 0 }
   const calls = mockFetch({
-    'graph.facebook.com/': () => ({ messages: [{ id: `wamid.out.${Math.random()}` }] }),
+    'graph.facebook.com/': (url) =>
+      url.pathname.endsWith('/media-1')
+        ? { url: 'https://lookaside.fbsbx.com/whatsapp_business/attachments/media-1', mime_type: 'image/jpeg', file_size: 4 }
+        : { messages: [{ id: `wamid.out.${Math.random()}` }] },
+    'lookaside.fbsbx.com/': () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { headers: { 'content-type': 'image/jpeg' } }),
     'api.anthropic.com/v1/messages': () => claudeAnswer(answers.shift() ?? answer({ intent: 'other', confidence: 0.2 })),
     'api.paystack.co/transaction/initialize': (_url, init) => {
       const body = JSON.parse(String(init?.body)) as { reference: string; amount: string }
@@ -299,5 +303,82 @@ describe('customer asks for the delivery code', () => {
     const token = riderLink.split('/r/')[1]
     expect(await t.mutation(api.deliveries.riderConfirm, { token, pin })).toMatchObject({ ok: true })
     expect((await order()).status).toBe('delivered')
+  })
+})
+
+async function pictureWebhook(t: T, caption?: string) {
+  const body = JSON.stringify({
+    entry: [
+      {
+        changes: [
+          {
+            field: 'messages',
+            value: {
+              metadata: { phone_number_id: SELLER_NUMBER_ID },
+              contacts: [{ wa_id: CUSTOMER_WA, profile: { name: 'Kofi' } }],
+              messages: [
+                { id: `wamid.in.${++messageCounter}`, from: CUSTOMER_WA, type: 'image', image: { id: 'media-1', mime_type: 'image/jpeg', caption } },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  })
+  return t.fetch('/whatsapp/webhook', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-hub-signature-256': `sha256=${await hmacHex('SHA-256', 'app-secret', body)}` },
+    body,
+  })
+}
+
+describe('customer sends a picture', () => {
+  it('adds a clearly matching product to the order', async () => {
+    const { t, productId, answers, order, sent } = await world()
+    answers.push({ description: 'A plate of jollof rice with chicken', text_in_image: null, matches: [{ product_id: productId, confidence: 0.92 }] })
+    await pictureWebhook(t, 'Do you have this?')
+    await settle(t)
+    expect((await order()).items[0]).toMatchObject({ productId, qty: 1, unitPricePesewas: 6500 })
+    expect((await sent()).some((m) => m.text?.startsWith('That looks like our Jollof with chicken'))).toBe(true)
+    const stored = await t.run(async (ctx) => (await ctx.db.query('inboundMessages').first())!)
+    expect(stored.mediaId).toBeDefined()
+  })
+
+  it('offers choices when it is a close call', async () => {
+    const { t, sellerId, productId, answers, sent } = await world()
+    const other = await t.run((ctx) => ctx.db.insert('products', { sellerId, name: 'Jollof with fish', pricePesewas: 7000, stock: 3, active: true }))
+    answers.push({
+      description: 'Jollof rice',
+      text_in_image: null,
+      matches: [
+        { product_id: productId, confidence: 0.6 },
+        { product_id: other, confidence: 0.55 },
+      ],
+    })
+    await pictureWebhook(t)
+    await settle(t)
+    expect(await t.run((ctx) => ctx.db.query('orders').take(5))).toEqual([])
+    expect((await sent()).some((m) => m.text?.startsWith('Is it one of these?'))).toBe(true)
+  })
+
+  it('shows the seller the picture when nothing matches', async () => {
+    const { t, ama, answers, sent } = await world()
+    answers.push({ description: 'A pair of sneakers', text_in_image: 'Nike', matches: [] })
+    await pictureWebhook(t)
+    await settle(t)
+    const overview = await ama.query(api.dashboard.today, {})
+    const item = overview!.attention.find((a) => a.type === 'low_confidence')!
+    expect(item.summary).toContain('A pair of sneakers')
+    expect(item.imageUrl).toMatch(/^https?:/)
+    expect((await sent()).some((m) => m.text?.startsWith('Thanks for the picture'))).toBe(true)
+  })
+
+  it('still passes the picture to the seller when the AI answer is unusable', async () => {
+    const { t, ama, answers } = await world()
+    answers.push('not json at all')
+    await pictureWebhook(t)
+    await settle(t)
+    const overview = await ama.query(api.dashboard.today, {})
+    expect(overview!.attention.some((a) => a.imageUrl !== null)).toBe(true)
   })
 })

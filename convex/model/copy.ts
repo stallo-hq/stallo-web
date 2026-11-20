@@ -35,6 +35,30 @@ export const copy = {
     return `Thanks for your message. Someone from ${business} will reply shortly.`
   },
 
+  pictureMatched(product: Product) {
+    return `That looks like our ${product.name} (${formatCedis(product.pricePesewas)}). I've added 1 to your order.`
+  },
+
+  pictureChoose(products: Product[]) {
+    const lines = products.map((p, i) => `${i + 1}. ${p.name}: ${formatCedis(p.pricePesewas)}`).join('\n')
+    return `Is it one of these?\n\n${lines}\n\nReply with the name of the one you want.`
+  },
+
+  pictureSoldOut(product: Product) {
+    return `That looks like our ${product.name}, but it's sold out right now.`
+  },
+
+  pictureNoMatch(business: string, products: Product[]) {
+    const list = catalogue(products)
+    return list
+      ? `Thanks for the picture. I couldn't find that exact item, so someone from ${business} will check and reply. Here is what we have:\n\n${list}`
+      : `Thanks for the picture. Someone from ${business} will check and reply shortly.`
+  },
+
+  pictureReceived(business: string) {
+    return `Thanks for the picture. Someone from ${business} will look at it and reply shortly.`
+  },
+
   unsupportedMedia(business: string) {
     return `Thanks. I can only read text messages here, so someone from ${business} will look at this and reply shortly.`
   },

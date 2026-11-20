@@ -217,3 +217,23 @@ export function messageText(message: InboundWhatsAppMessage): string | null {
   if (message.type === 'interactive') return message.interactive?.button_reply?.title ?? message.interactive?.list_reply?.title ?? null
   return null
 }
+
+/** Biggest customer picture we copy from WhatsApp. */
+const MAX_MEDIA_BYTES = 5 * 1024 * 1024
+
+/** Downloads a picture a customer sent. WhatsApp keeps media for a limited time, so copy it promptly. */
+export async function downloadMedia(mediaId: string, token: string): Promise<{ bytes: Uint8Array; mimeType: string }> {
+  const info = await graph<{ url?: string; mime_type?: string; file_size?: number }>('GET', mediaId, token)
+  if (!info.url) throw new WhatsAppError('rejected', 'WhatsApp returned no media link')
+  if (info.file_size && info.file_size > MAX_MEDIA_BYTES) throw new WhatsAppError('rejected', 'Picture is too large')
+  let response: Response
+  try {
+    response = await fetch(info.url, { headers: { Authorization: `Bearer ${token}` } })
+  } catch {
+    throw new WhatsAppError('temporary', 'Could not download the picture from WhatsApp')
+  }
+  if (!response.ok) throw classify(response.status, {})
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  if (bytes.length > MAX_MEDIA_BYTES) throw new WhatsAppError('rejected', 'Picture is too large')
+  return { bytes, mimeType: info.mime_type || response.headers.get('content-type') || 'image/jpeg' }
+}

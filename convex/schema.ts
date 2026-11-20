@@ -78,6 +78,8 @@ export default defineSchema({
     stock: v.number(),
     active: v.boolean(),
     photoId: v.optional(v.id('_storage')),
+    // What the photo shows, written by the AI once per upload, used to match customers' pictures.
+    photoDescription: v.optional(v.string()),
   }).index('by_seller', ['sellerId']),
 
   customers: defineTable({
@@ -107,6 +109,8 @@ export default defineSchema({
     from: v.optional(v.string()),
     profileName: v.optional(v.string()),
     raw: v.any(),
+    // A picture the customer sent, copied from WhatsApp so the seller can see it.
+    mediaId: v.optional(v.id('_storage')),
     status: processingStatus,
     attempts: v.number(),
     lastAttemptAt: v.optional(v.number()),

@@ -1,4 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { ImagePlus } from 'lucide-react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import type { Id } from '../../../convex/_generated/dataModel'
 import { Button } from '../../components/ui/Button'
 import { Dialog } from '../../components/ui/Dialog'
 import { Field } from '../../components/ui/Field'
@@ -8,7 +10,12 @@ import { parseCedis, pesewasToInput } from '../../lib/money'
 import styles from './ProductsPage.module.css'
 import type { Product, ProductInput } from './useProducts'
 
-type Errors = Partial<Record<'name' | 'price' | 'stock' | 'form', string>>
+type Errors = Partial<Record<'name' | 'price' | 'stock' | 'photo' | 'form', string>>
+
+/** null = keep the current photo; 'removed' = take it off; a file = replace it. */
+type PhotoChange = null | 'removed' | { file: File; preview: string }
+
+const MAX_PICK_BYTES = 20 * 1024 * 1024
 
 /** Add or edit a product. `product` null = new. Give it a new `key` each time it opens so the form starts fresh. */
 export function ProductDialog({
@@ -16,9 +23,11 @@ export function ProductDialog({
   product,
   onOpenChange,
   onSave,
+  uploadPhoto,
 }: {
   open: boolean
   product: Product | null
+  uploadPhoto: (file: File) => Promise<Id<'_storage'>>
   onOpenChange: (open: boolean) => void
   onSave: (input: ProductInput) => Promise<unknown>
 }) {
@@ -28,6 +37,27 @@ export function ProductDialog({
   const [active, setActive] = useState(product?.active ?? true)
   const [errors, setErrors] = useState<Errors>({})
   const [busy, setBusy] = useState(false)
+  const [photo, setPhoto] = useState<PhotoChange>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const previewUrl = photo === 'removed' ? null : photo ? photo.preview : (product?.photoUrl ?? null)
+
+  useEffect(() => {
+    // Free the preview's memory when it's replaced or the dialog closes.
+    return () => {
+      if (photo && photo !== 'removed') URL.revokeObjectURL(photo.preview)
+    }
+  }, [photo])
+
+  function pickPhoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) return setErrors((x) => ({ ...x, photo: 'Choose a photo (JPG or PNG).' }))
+    if (file.size > MAX_PICK_BYTES) return setErrors((x) => ({ ...x, photo: 'That photo is too large.' }))
+    setErrors((x) => ({ ...x, photo: undefined }))
+    setPhoto({ file, preview: URL.createObjectURL(file) })
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -42,7 +72,8 @@ export function ProductDialog({
 
     setBusy(true)
     try {
-      await onSave({ name, pricePesewas, stock: stockCount, active })
+      const photoId = photo === 'removed' ? null : photo ? await uploadPhoto(photo.file) : undefined
+      await onSave({ name, pricePesewas, stock: stockCount, active, ...(photoId !== undefined ? { photoId } : {}) })
       onOpenChange(false)
     } catch (err) {
       setErrors({ form: errorMessage(err, 'Couldn’t save. Try again.') })
@@ -95,6 +126,25 @@ export function ProductDialog({
           onChange={(e) => setStock(e.target.value)}
           error={errors.stock}
         />
+      </div>
+      <div className={styles.photoPicker}>
+        <div className={styles.photoPreview}>{previewUrl ? <img src={previewUrl} alt="" /> : <ImagePlus size={26} />}</div>
+        <div className={styles.photoText}>
+          <span className={styles.photoLabel}>Photo</span>
+          <span>Helps Stallo recognise this item when a customer sends a picture, like a TikTok screenshot.</span>
+          <div className={styles.photoActions}>
+            <Button size="sm" onClick={() => fileInput.current?.click()}>
+              {previewUrl ? 'Change photo' : 'Add photo'}
+            </Button>
+            {previewUrl && (
+              <Button size="sm" variant="ghost" onClick={() => setPhoto(product?.photoUrl ? 'removed' : null)}>
+                Remove
+              </Button>
+            )}
+          </div>
+          {errors.photo && <span className={styles.formError}>{errors.photo}</span>}
+        </div>
+        <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPhoto} />
       </div>
       <Switch
         label="Available to order"

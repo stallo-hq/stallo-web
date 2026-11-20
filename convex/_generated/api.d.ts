@@ -20,6 +20,7 @@ import type * as inbound from "../inbound.js";
 import type * as integrations_assistant from "../integrations/assistant.js";
 import type * as integrations_paystack from "../integrations/paystack.js";
 import type * as integrations_sasusync from "../integrations/sasusync.js";
+import type * as integrations_vision from "../integrations/vision.js";
 import type * as integrations_whatsapp from "../integrations/whatsapp.js";
 import type * as lib_authMessages from "../lib/authMessages.js";
 import type * as lib_money from "../lib/money.js";
@@ -48,6 +49,7 @@ import type * as sellers from "../sellers.js";
 import type * as site from "../site.js";
 import type * as summary from "../summary.js";
 import type * as users from "../users.js";
+import type * as vision from "../vision.js";
 import type * as whatsapp_templates from "../whatsapp/templates.js";
 import type * as whatsappConnect from "../whatsappConnect.js";
 
@@ -70,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "integrations/assistant": typeof integrations_assistant;
   "integrations/paystack": typeof integrations_paystack;
   "integrations/sasusync": typeof integrations_sasusync;
+  "integrations/vision": typeof integrations_vision;
   "integrations/whatsapp": typeof integrations_whatsapp;
   "lib/authMessages": typeof lib_authMessages;
   "lib/money": typeof lib_money;
@@ -98,6 +101,7 @@ declare const fullApi: ApiFromModules<{
   site: typeof site;
   summary: typeof summary;
   users: typeof users;
+  vision: typeof vision;
   "whatsapp/templates": typeof whatsapp_templates;
   whatsappConnect: typeof whatsappConnect;
 }>;

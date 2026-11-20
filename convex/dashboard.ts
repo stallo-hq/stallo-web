@@ -23,6 +23,8 @@ const todayView = v.object({
       summary: v.string(),
       createdAt: v.number(),
       orderId: v.optional(v.id('orders')),
+      /** The picture the customer sent, when there is one. */
+      imageUrl: v.union(v.string(), v.null()),
     }),
   ),
   attentionCount: v.number(),
@@ -56,9 +58,13 @@ export const today = query({
         awaitingPayment: stats.awaitingPayment,
         toDeliver: stats.toDeliver,
       },
-      attention: stats.openAttention
-        .slice(0, 8)
-        .map(({ _id, type, summary, createdAt, orderId }) => ({ _id, type, summary, createdAt, orderId })),
+      attention: await Promise.all(
+        stats.openAttention.slice(0, 8).map(async ({ _id, type, summary, createdAt, orderId, inboundMessageId }) => {
+          const message = inboundMessageId ? await ctx.db.get(inboundMessageId) : null
+          const imageUrl = message?.mediaId ? await ctx.storage.getUrl(message.mediaId) : null
+          return { _id, type, summary, createdAt, orderId, imageUrl }
+        }),
+      ),
       attentionCount: stats.openAttention.length,
     }
   },

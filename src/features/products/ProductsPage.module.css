@@ -102,6 +102,57 @@
   color: var(--text-2);
   font-family: var(--font-display);
   font-weight: 600;
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoPicker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.photoPreview {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 88px;
+  height: 88px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  color: var(--text-3);
+  overflow: hidden;
+}
+
+.photoPreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photoText {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.photoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photoLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .hiddenName {

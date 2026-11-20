@@ -2,6 +2,7 @@ import type { Doc, Id } from '../_generated/dataModel'
 import { internal } from '../_generated/api'
 import type { MutationCtx } from '../_generated/server'
 import type { Extraction } from '../integrations/assistant'
+import { decide, type PictureMatch } from '../integrations/vision'
 import { raiseAttention } from './attention'
 import { copy } from './copy'
 import { calculateFee, sellerFeeConfig } from './fees'
@@ -20,6 +21,7 @@ export type CustomerInput =
   | { kind: 'text'; text: string; extraction: Extraction; threshold: number }
   | { kind: 'location'; text: string; address: string; location: { lat: number; lng: number } }
   | { kind: 'media'; text: string; mediaType: string }
+  | { kind: 'image'; text: string; match: PictureMatch | null }
 
 type State = {
   seller: Doc<'sellers'>
@@ -97,6 +99,8 @@ export async function handleCustomerMessage(
       summary: `${customer.name ?? customer.phone} sent a ${input.mediaType} message. Reply to them on WhatsApp.`,
       notify: true,
     })
+  } else if (input.kind === 'image') {
+    await handlePicture(ctx, state, inbound, input)
   } else if (input.kind === 'location') {
     await ctx.db.patch(customer._id, { lastAddress: input.address })
     if (state.order && state.order.status !== 'awaiting_payment') {
@@ -109,6 +113,59 @@ export async function handleCustomerMessage(
   }
 
   await finish(ctx, state, input.text)
+}
+
+/**
+ * A picture (often a TikTok or status screenshot). A clear match goes into the
+ * basket; close calls are offered as choices; anything else goes to the seller
+ * with the picture attached.
+ */
+async function handlePicture(
+  ctx: MutationCtx,
+  state: State,
+  inbound: Doc<'inboundMessages'>,
+  input: Extract<CustomerInput, { kind: 'image' }>,
+) {
+  const { seller, customer } = state
+  const available = state.products.filter((p) => p.active && p.stock > 0)
+  const byId = new Map(state.products.map((p) => [p._id as string, p]))
+  const decision = input.match ? decide(input.match) : null
+
+  if (decision?.kind === 'match') {
+    const product = byId.get(decision.productId)!
+    if (!product.active || product.stock <= 0) {
+      state.replies.push(`${copy.pictureSoldOut(product)} ${copy.askWhatToOrder(available)}`)
+      return
+    }
+    const current = state.order && state.order.status !== 'awaiting_payment' ? state.order.items : []
+    const items = current.map((i) => ({ product_id: i.productId as string, quantity: i.qty }))
+    const line = items.find((i) => i.product_id === product._id)
+    if (line) line.quantity += 1
+    else items.push({ product_id: product._id, quantity: 1 })
+    state.replies.push(copy.pictureMatched(product))
+    await updateBasket(ctx, state, { items, address: null, unmatched: [] })
+    return
+  }
+
+  if (decision?.kind === 'choose') {
+    const options = decision.productIds.map((id) => byId.get(id)!).filter((p) => p.active && p.stock > 0)
+    if (options.length > 0) {
+      state.replies.push(copy.pictureChoose(options))
+      return
+    }
+  }
+
+  const who = customer.name ?? customer.phone
+  const seen = input.match?.description ? ` It looks like: ${input.match.description}` : ''
+  state.replies.push(input.match ? copy.pictureNoMatch(seller.businessName, available) : copy.pictureReceived(seller.businessName))
+  await raiseAttention(ctx, {
+    sellerId: seller._id,
+    type: 'low_confidence',
+    orderId: state.order?._id,
+    inboundMessageId: inbound._id,
+    summary: `${who} sent a picture Stallo couldn't match to a product.${seen} See it here and reply on WhatsApp.`.slice(0, 400),
+    notify: true,
+  })
 }
 
 async function handleText(
