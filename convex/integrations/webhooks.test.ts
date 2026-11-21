@@ -55,6 +55,36 @@ describe('WhatsApp webhook payload', () => {
     expect(batches[0].statuses[0].status).toBe('failed')
   })
 
+  it('pulls out replies the seller typed in the WhatsApp Business app', () => {
+    const batches = parseWebhook({
+      entry: [
+        {
+          changes: [
+            {
+              field: 'smb_message_echoes',
+              value: {
+                metadata: { phone_number_id: '111' },
+                message_echoes: [
+                  { id: 'wamid.echo.1', from: '233200000000', to: '233241234567', type: 'text', text: { body: 'I’ll bring it myself' } },
+                  { id: 'wamid.echo.2', from: '233200000000', to: '233241234567', type: 'image', image: { id: 'm1', caption: 'This one?' } },
+                  { id: 'wamid.echo.3', from: '233200000000', to: '233241234567', type: 'sticker' },
+                  { id: 'wamid.echo.4', from: '233200000000', type: 'text', text: { body: 'no recipient' } },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    })
+    expect(batches).toHaveLength(1)
+    expect(batches[0].messages).toEqual([])
+    expect(batches[0].echoes).toEqual([
+      { id: 'wamid.echo.1', to: '233241234567', text: 'I’ll bring it myself' },
+      { id: 'wamid.echo.2', to: '233241234567', text: '[image] This one?' },
+      { id: 'wamid.echo.3', to: '233241234567', text: '[sticker]' },
+    ])
+  })
+
   it('ignores other fields and junk', () => {
     expect(parseWebhook({ entry: [{ changes: [{ field: 'account_update', value: {} }] }] })).toEqual([])
     expect(parseWebhook(null)).toEqual([])

@@ -45,6 +45,31 @@ async function whatsappWebhook(t: T, text: string, from = CUSTOMER_WA, opts: { i
   })
 }
 
+/** The seller typed a reply in the WhatsApp Business app on their phone (coexistence). */
+async function sellerEcho(t: T, text: string, to = CUSTOMER_WA, id = `wamid.echo.${++messageCounter}`) {
+  const body = JSON.stringify({
+    object: 'whatsapp_business_account',
+    entry: [
+      {
+        changes: [
+          {
+            field: 'smb_message_echoes',
+            value: {
+              metadata: { phone_number_id: SELLER_NUMBER_ID },
+              message_echoes: [{ id, from: '233200000000', to, type: 'text', text: { body: text } }],
+            },
+          },
+        ],
+      },
+    ],
+  })
+  return t.fetch('/whatsapp/webhook', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-hub-signature-256': `sha256=${await hmacHex('SHA-256', 'app-secret', body)}` },
+    body,
+  })
+}
+
 async function paystackWebhook(t: T, event: string, data: Record<string, unknown>) {
   const body = JSON.stringify({ event, data })
   return t.fetch('/paystack/webhook', {
@@ -242,6 +267,77 @@ describe('needs attention', () => {
     const overview = await ama.query(api.dashboard.today, {})
     expect(overview?.attention.some((a) => a.type === 'low_confidence')).toBe(true)
     expect((await sent()).some((m) => m.recipient === CUSTOMER)).toBe(true) // holding reply
+  })
+})
+
+describe('seller replies from their phone', () => {
+  const conversation = (t: T) => t.run(async (ctx) => (await ctx.db.query('conversations').first())!)
+
+  it('stays quiet in that chat while the seller is replying, then answers again', async () => {
+    const { t, answers, calls, sent } = await world()
+    const assistantCalls = () => calls.filter((c) => c.url.includes('api.anthropic.com')).length
+    expect((await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'wamid.echo.same')).status).toBe(200)
+    await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'wamid.echo.same') // Meta's retry
+    await whatsappWebhook(t, 'Two jollof please')
+    await settle(t)
+
+    expect(await sent()).toEqual([]) // no reply on top of the seller's
+    expect(assistantCalls()).toBe(0) // and the assistant isn't asked
+    const quiet = await conversation(t)
+    expect(quiet.history?.map((h) => [h.from, h.text])).toEqual([
+      ['seller', 'Hi Kofi, what would you like?'],
+      ['customer', 'Two jollof please'],
+    ])
+    expect(quiet.lastInboundAt).toBeGreaterThan(0) // the customer's message opens the 24-hour window
+    expect(await t.run((ctx) => ctx.db.query('inboundMessages').collect())).toEqual([
+      expect.objectContaining({ status: 'done' }),
+    ])
+
+    // 31 minutes after the seller's last reply, Stallo answers again.
+    vi.advanceTimersByTime(31 * 60 * 1000)
+    answers.push(answer({ intent: 'greeting' }))
+    await whatsappWebhook(t, 'Hello?')
+    await settle(t)
+    expect(answers).toHaveLength(0)
+    expect((await sent()).some((m) => m.recipient === CUSTOMER)).toBe(true)
+  })
+
+  it('does not open the 24-hour window when the seller starts the chat', async () => {
+    const { t } = await world()
+    await sellerEcho(t, 'Your order is ready')
+    expect((await conversation(t)).lastInboundAt).toBe(0)
+  })
+
+  it('lets the seller hand the chat back to Stallo straight away', async () => {
+    const { t, ama, productId, answers, sent, order } = await world()
+    answers.push(answer({ items: [{ product_id: productId, quantity: 1 }], address: 'Osu, Oxford Street' }))
+    await whatsappWebhook(t, 'One jollof to Osu, Oxford Street')
+    await settle(t)
+    const orderId = (await order())._id
+    await sellerEcho(t, 'Give me a minute')
+    expect((await ama.query(api.orders.get, { orderId }))?.sellerHandlingUntil).toBeGreaterThan(Date.now())
+
+    const kwame = await seller(t, '+233551234567', 'Kwame Shop')
+    await expect(kwame.mutation(api.conversations.letStalloReply, { orderId })).rejects.toThrow()
+
+    await ama.mutation(api.conversations.letStalloReply, { orderId })
+    expect((await ama.query(api.orders.get, { orderId }))?.sellerHandlingUntil).toBeUndefined()
+    const before = (await sent()).length
+    answers.push(answer({ intent: 'question', reply: 'We open at 8.' }))
+    await whatsappWebhook(t, 'When do you open?')
+    await settle(t)
+    expect((await sent()).length).toBeGreaterThan(before)
+  })
+
+  it('tells the assistant what the seller said', async () => {
+    const { t, answers, calls } = await world()
+    await sellerEcho(t, 'Delivery is free today')
+    vi.advanceTimersByTime(31 * 60 * 1000)
+    answers.push(answer({ intent: 'greeting' }))
+    await whatsappWebhook(t, 'Hi')
+    await settle(t)
+    const prompt = JSON.stringify(calls.filter((c) => c.url.includes('anthropic')).map((c) => c.body))
+    expect(prompt).toContain('Business owner (typed by hand): Delivery is free today')
   })
 })
 

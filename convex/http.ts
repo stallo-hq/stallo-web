@@ -51,6 +51,9 @@ http.route({
           })),
         })
       }
+      if (batch.echoes.length > 0) {
+        await ctx.runMutation(internal.inbound.sellerReplied, { phoneNumberId: batch.phoneNumberId, echoes: batch.echoes })
+      }
       for (const status of batch.statuses) {
         if (status.status !== 'failed') continue
         const error = status.errors?.[0]

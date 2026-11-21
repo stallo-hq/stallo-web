@@ -55,7 +55,7 @@ export type AssistantInput = {
   recipient: string | null
   deliveryAreas: string | null
   awaitingConfirmation: boolean
-  history: { from: 'customer' | 'stallo'; text: string }[]
+  history: { from: 'customer' | 'stallo' | 'seller'; text: string }[]
   message: string
 }
 
@@ -94,13 +94,20 @@ export function model(): string {
   return process.env.LLM_MODEL || 'claude-haiku-5-5'
 }
 
+const HISTORY_SPEAKER: Record<AssistantInput['history'][number]['from'], string> = {
+  customer: 'Customer',
+  stallo: 'Business',
+  // The owner typed this on their phone. What they agreed with the customer counts.
+  seller: 'Business owner (typed by hand)',
+}
+
 export function buildUserMessage(input: AssistantInput): string {
   const products = input.products.length
     ? input.products.map((p) => `- id=${p.id} | ${p.name} | ${p.price}${p.available ? '' : ' | NOT AVAILABLE'}`).join('\n')
     : '(no products yet)'
   const basket = input.basket.length ? input.basket.map((b) => `- id=${b.product_id} | ${b.name} × ${b.quantity}`).join('\n') : '(empty)'
   const history = input.history.length
-    ? input.history.map((h) => `${h.from === 'customer' ? 'Customer' : 'Business'}: ${h.text}`).join('\n')
+    ? input.history.map((h) => `${HISTORY_SPEAKER[h.from]}: ${h.text}`).join('\n')
     : '(none)'
   return [
     `Business: ${input.businessName}`,

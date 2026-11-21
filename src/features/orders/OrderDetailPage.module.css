@@ -23,9 +23,23 @@
   color: var(--text-3);
 }
 
-.next span {
+.next span,
+.handling span {
   flex: 1;
   min-width: 200px;
+}
+
+.handling {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 14px;
 }
 
 .layout {

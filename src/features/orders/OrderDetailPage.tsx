@@ -1,4 +1,4 @@
-import { AlertTriangle, Bike, Check, ExternalLink, MapPin, Phone, RotateCcw, Send, Undo2, XCircle } from 'lucide-react'
+import { AlertTriangle, Bike, Check, ExternalLink, MapPin, MessageCircle, Phone, RotateCcw, Send, Undo2, XCircle } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -12,6 +12,7 @@ import { Dialog } from '../../components/ui/Dialog'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Field } from '../../components/ui/Field'
 import { PageSpinner } from '../../components/ui/Spinner'
+import { useNow } from '../../hooks/useNow'
 import { formatShortDateTime } from '../../lib/dates'
 import { errorMessage } from '../../lib/errors'
 import { formatCedis } from '../../lib/money'
@@ -103,6 +104,12 @@ export function OrderDetailPage() {
       />
 
       <NextStep order={order} onResend={() => run(() => actions.resendLink({ orderId }), 'Payment link sent again')} />
+      {order.sellerHandlingUntil !== undefined && (
+        <SellerHandling
+          until={order.sellerHandlingUntil}
+          onResume={() => run(() => actions.letStalloReply({ orderId }), 'Stallo will answer this customer again')}
+        />
+      )}
 
       <div className={styles.layout}>
         <div className={styles.main}>
@@ -400,6 +407,35 @@ export function OrderDetailPage() {
 }
 
 /** One line telling the seller what happens next with this order. */
+/** Shown while the seller is replying to this customer from their phone and Stallo is staying quiet. */
+function SellerHandling({ until, onResume }: { until: number; onResume: () => Promise<unknown> }) {
+  const now = useNow()
+  const [busy, setBusy] = useState(false)
+  if (until <= now) return null
+  return (
+    <div className={styles.handling}>
+      <MessageCircle size={16} />
+      <span>
+        You replied to this customer from your phone, so Stallo won’t answer them until {formatShortDateTime(until, now)}. Every reply you
+        send restarts this.
+      </span>
+      <Button
+        size="sm"
+        variant="secondary"
+        loading={busy}
+        onClick={() => {
+          setBusy(true)
+          void onResume()
+            .catch(() => undefined)
+            .finally(() => setBusy(false))
+        }}
+      >
+        Let Stallo reply now
+      </Button>
+    </div>
+  )
+}
+
 function NextStep({ order, onResend }: { order: OrderDetail; onResend: () => Promise<unknown> }) {
   const [busy, setBusy] = useState(false)
   const text: Partial<Record<OrderDetail['status'], string>> = {

@@ -17,5 +17,6 @@ export function useOrder(orderId: Id<'orders'>) {
     refund: useAction(api.payments.refundOrder),
     resendLink: useAction(api.payments.resendLink),
     resolve: useMutation(api.attention.resolve),
+    letStalloReply: useMutation(api.conversations.letStalloReply),
   }
 }

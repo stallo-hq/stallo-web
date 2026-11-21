@@ -107,9 +107,20 @@ export default defineSchema({
     draftOrderId: v.optional(v.id('orders')),
     lastInboundAt: v.number(),
     // Recent turns, newest last, so the assistant has context. Capped in model/conversation.ts.
+    // `seller` turns are replies the seller typed in the WhatsApp Business app (coexistence);
+    // `id` is the WhatsApp message id of such a reply, so Meta's retries aren't added twice.
     history: v.optional(
-      v.array(v.object({ from: v.union(v.literal('customer'), v.literal('stallo')), text: v.string(), at: v.number() })),
+      v.array(
+        v.object({
+          from: v.union(v.literal('customer'), v.literal('stallo'), v.literal('seller')),
+          text: v.string(),
+          at: v.number(),
+          id: v.optional(v.string()),
+        }),
+      ),
     ),
+    // The seller replied by hand: Stallo stays quiet in this chat until then.
+    sellerActiveUntil: v.optional(v.number()),
   }).index('by_seller_and_customer', ['sellerId', 'customerId']),
 
   inboundMessages: defineTable({

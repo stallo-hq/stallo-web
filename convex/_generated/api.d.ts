@@ -12,6 +12,7 @@ import type * as account from "../account.js";
 import type * as admin from "../admin.js";
 import type * as attention from "../attention.js";
 import type * as auth from "../auth.js";
+import type * as conversations from "../conversations.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as deliveries from "../deliveries.js";
@@ -67,6 +68,7 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   attention: typeof attention;
   auth: typeof auth;
+  conversations: typeof conversations;
   crons: typeof crons;
   dashboard: typeof dashboard;
   deliveries: typeof deliveries;

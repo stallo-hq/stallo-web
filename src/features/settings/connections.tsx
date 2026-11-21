@@ -122,7 +122,10 @@ function EmbeddedSignup({ config }: { config: { appId: string; configId: string;
         <Button variant="primary" size="lg" block loading={busy === 'keep'} disabled={!ready || busy !== null} onClick={() => void connect(true)}>
           Use my WhatsApp Business number
         </Button>
-        <span className={styles.choiceHint}>Keep using the WhatsApp Business app on your phone as well.</span>
+        <span className={styles.choiceHint}>
+          Keep using the WhatsApp Business app on your phone as well. When you reply to a customer yourself, Stallo stays quiet in that chat for 30
+          minutes.
+        </span>
         <Button variant="secondary" size="lg" block loading={busy === 'new'} disabled={!ready || busy !== null} onClick={() => void connect(false)}>
           Use a new number
         </Button>

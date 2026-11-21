@@ -9,7 +9,13 @@ import { formatCedis } from './lib/money'
 import { toE164 } from './lib/phone'
 import { raiseAttention } from './model/attention'
 import { copy } from './model/copy'
-import { describeLocation, handleCustomerMessage } from './model/conversation'
+import {
+  describeLocation,
+  handleCustomerMessage,
+  recordSellerReply,
+  recordWhileSellerHandling,
+  sellerIsHandling,
+} from './model/conversation'
 import { checkPin, isPinShaped } from './model/delivery'
 import { queueMessage } from './model/outbound'
 
@@ -58,6 +64,27 @@ export const receive = internalMutation({
         receivedAt: Date.now(),
       })
       if (seller) await ctx.scheduler.runAfter(0, internal.inbound.processMessage, { id })
+    }
+    return null
+  },
+})
+
+/**
+ * The seller typed replies in the WhatsApp Business app (coexistence). Stallo
+ * records them and stays quiet in those chats for a while, so customers never
+ * get two different answers.
+ */
+export const sellerReplied = internalMutation({
+  args: { phoneNumberId: v.string(), echoes: v.array(v.object({ id: v.string(), to: v.string(), text: v.string() })) },
+  returns: v.null(),
+  handler: async (ctx, { phoneNumberId, echoes }) => {
+    const seller = await ctx.db
+      .query('sellers')
+      .withIndex('by_whatsapp_phone_number_id', (q) => q.eq('whatsappPhoneNumberId', phoneNumberId))
+      .first()
+    if (!seller) return null
+    for (const echo of echoes) {
+      await recordSellerReply(ctx, seller._id, toE164(echo.to), { id: echo.id, text: echo.text })
     }
     return null
   },
@@ -113,6 +140,7 @@ export const fail = internalMutation({
 type Context =
   | { kind: 'ignore' }
   | { kind: 'rider_pin'; deliveryId: Doc<'deliveries'>['_id']; pin: string }
+  | { kind: 'seller_handling'; text: string }
   | { kind: 'media'; text: string; mediaType: string }
   | {
       kind: 'image'
@@ -150,6 +178,22 @@ export const context = internalQuery({
       if (delivery) return { kind: 'rider_pin', deliveryId: delivery._id, pin }
     }
 
+    const customer = await ctx.db
+      .query('customers')
+      .withIndex('by_seller_and_phone', (q) => q.eq('sellerId', seller._id).eq('phone', message.from!))
+      .unique()
+    const conversation = customer
+      ? await ctx.db
+          .query('conversations')
+          .withIndex('by_seller_and_customer', (q) => q.eq('sellerId', seller._id).eq('customerId', customer._id))
+          .unique()
+      : null
+    // The seller is replying by hand on their phone: don't answer over them.
+    if (sellerIsHandling(conversation)) {
+      const caption = (raw as { image?: { caption?: string } }).image?.caption?.trim()
+      return { kind: 'seller_handling', text: text?.trim() || (caption ? `[picture] ${caption}` : `[${raw.type.replace(/_/g, ' ')}]`) }
+    }
+
     const image = (raw as { image?: { id?: string; caption?: string } }).image
     if (raw.type === 'image' && image?.id) {
       const products = await ctx.db
@@ -184,16 +228,6 @@ export const context = internalQuery({
     }
     if (text === null || text.trim() === '') return { kind: 'media', text: `[${raw.type}]`, mediaType: raw.type.replace(/_/g, ' ') }
 
-    const customer = await ctx.db
-      .query('customers')
-      .withIndex('by_seller_and_phone', (q) => q.eq('sellerId', seller._id).eq('phone', message.from!))
-      .unique()
-    const conversation = customer
-      ? await ctx.db
-          .query('conversations')
-          .withIndex('by_seller_and_customer', (q) => q.eq('sellerId', seller._id).eq('customerId', customer._id))
-          .unique()
-      : null
     const order = conversation?.draftOrderId ? await ctx.db.get(conversation.draftOrderId) : null
     const open = order && ['draft', 'awaiting_confirmation', 'awaiting_payment'].includes(order.status) ? order : null
     const products = await ctx.db
@@ -276,6 +310,7 @@ export const apply = internalMutation({
       }),
       v.object({ kind: v.literal('media'), text: v.string(), mediaType: v.string() }),
       v.object({ kind: v.literal('image'), text: v.string(), match: v.union(v.null(), pictureMatch) }),
+      v.object({ kind: v.literal('seller_handling'), text: v.string() }),
     ),
   },
   returns: v.null(),
@@ -284,7 +319,8 @@ export const apply = internalMutation({
     if (!message || message.status !== 'pending' || !message.sellerId) return null
     const seller = await ctx.db.get(message.sellerId)
     if (!seller) return null
-    await handleCustomerMessage(ctx, message, seller, input)
+    if (input.kind === 'seller_handling') await recordWhileSellerHandling(ctx, message, seller, input.text)
+    else await handleCustomerMessage(ctx, message, seller, input)
     await ctx.db.patch(id, { status: 'done', error: undefined })
     return null
   },
@@ -348,6 +384,9 @@ export const processMessage = internalAction({
           await ctx.runMutation(internal.inbound.apply, { id, input: { kind: 'image', text: c.text, match } })
           return null
         }
+        case 'seller_handling':
+          await ctx.runMutation(internal.inbound.apply, { id, input: { kind: 'seller_handling', text: c.text } })
+          return null
         case 'media':
           await ctx.runMutation(internal.inbound.apply, { id, input: { kind: 'media', text: c.text, mediaType: c.mediaType } })
           return null

@@ -95,6 +95,8 @@ const detailView = v.object({
     }),
   ),
   attention: v.array(v.object({ _id: v.id('attentionItems'), summary: v.string(), createdAt: v.number() })),
+  // Set while the seller is replying to this customer from their phone and Stallo is staying quiet.
+  sellerHandlingUntil: v.optional(v.number()),
 })
 
 /** One order with everything the order page shows. Null if it isn't the caller's. */
@@ -105,7 +107,7 @@ export const get = query({
     const seller = await currentSeller(ctx)
     const order = await ctx.db.get(orderId)
     if (seller === null || order === null || order.sellerId !== seller._id) return null
-    const [customer, delivery, payments, attention] = await Promise.all([
+    const [customer, delivery, payments, attention, conversation] = await Promise.all([
       ctx.db.get(order.customerId),
       order.deliveryId ? ctx.db.get(order.deliveryId) : null,
       ctx.db
@@ -117,6 +119,10 @@ export const get = query({
         .query('attentionItems')
         .withIndex('by_order', (q) => q.eq('orderId', orderId))
         .take(20),
+      ctx.db
+        .query('conversations')
+        .withIndex('by_seller_and_customer', (q) => q.eq('sellerId', seller._id).eq('customerId', order.customerId))
+        .unique(),
     ])
     const payment = payments.find((p) => p.status === 'paid' || p.status === 'refunded') ?? payments[0] ?? null
     return {
@@ -157,6 +163,8 @@ export const get = query({
       attention: attention
         .filter((a) => !a.resolved)
         .map(({ _id, summary, createdAt }) => ({ _id, summary, createdAt })),
+      // The page compares this with the current time (a query result doesn't change as time passes).
+      sellerHandlingUntil: conversation?.sellerActiveUntil,
     }
   },
 })

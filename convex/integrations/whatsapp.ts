@@ -183,18 +183,41 @@ export type WebhookBatch = {
   contacts: Map<string, string>
   messages: InboundWhatsAppMessage[]
   statuses: { id: string; status: string; errors?: { code: number; title?: string; message?: string }[] }[]
+  /** Replies the seller typed in the WhatsApp Business app on their phone (coexistence numbers only). */
+  echoes: SellerEcho[]
 }
 
-/** Pulls messages and delivery statuses out of a webhook payload. */
+export type SellerEcho = { id: string; to: string; text: string }
+
+/** What a seller's reply said, for the chat history. Media becomes a short label. */
+function echoText(message: InboundWhatsAppMessage): string {
+  const text = messageText(message)
+  if (text !== null && text.trim() !== '') return text
+  const caption = (message as { image?: { caption?: string } }).image?.caption?.trim()
+  return caption ? `[${message.type}] ${caption}` : `[${(message.type ?? 'message').replace(/_/g, ' ')}]`
+}
+
+/**
+ * Pulls messages, delivery statuses and the seller's own replies out of a webhook payload.
+ * Replies typed on the phone arrive in the `smb_message_echoes` field, which Meta only sends
+ * for numbers that also stay on the WhatsApp Business app.
+ */
 export function parseWebhook(payload: unknown): WebhookBatch[] {
   const batches: WebhookBatch[] = []
   const entries = (payload as { entry?: unknown[] })?.entry ?? []
   for (const entry of entries) {
     for (const change of (entry as { changes?: unknown[] }).changes ?? []) {
       const { field, value } = change as { field?: string; value?: Record<string, unknown> }
-      if (field !== 'messages' || !value) continue
+      if ((field !== 'messages' && field !== 'smb_message_echoes') || !value) continue
       const metadata = value.metadata as { phone_number_id?: string } | undefined
       if (!metadata?.phone_number_id) continue
+      if (field === 'smb_message_echoes') {
+        const echoes = ((value.message_echoes as (InboundWhatsAppMessage & { to?: string })[] | undefined) ?? [])
+          .filter((m) => m?.id && m?.to)
+          .map((m) => ({ id: m.id, to: m.to!, text: echoText(m).slice(0, 500) }))
+        batches.push({ phoneNumberId: metadata.phone_number_id, contacts: new Map(), messages: [], statuses: [], echoes })
+        continue
+      }
       const contacts = new Map<string, string>()
       for (const c of (value.contacts as { wa_id?: string; profile?: { name?: string } }[] | undefined) ?? []) {
         if (c.wa_id && c.profile?.name) contacts.set(c.wa_id, c.profile.name)
@@ -204,6 +227,7 @@ export function parseWebhook(payload: unknown): WebhookBatch[] {
         contacts,
         messages: ((value.messages as InboundWhatsAppMessage[] | undefined) ?? []).filter((m) => m?.id && m?.from),
         statuses: (value.statuses as WebhookBatch['statuses'] | undefined) ?? [],
+        echoes: [],
       })
     }
   }

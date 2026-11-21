@@ -57,14 +57,56 @@ export async function findOrCreateConversation(
   ctx: MutationCtx,
   sellerId: Id<'sellers'>,
   customerId: Id<'customers'>,
+  // A chat the seller starts from their phone hasn't opened WhatsApp's 24-hour window.
+  lastInboundAt = Date.now(),
 ): Promise<Doc<'conversations'>> {
   const existing = await ctx.db
     .query('conversations')
     .withIndex('by_seller_and_customer', (q) => q.eq('sellerId', sellerId).eq('customerId', customerId))
     .unique()
   if (existing) return existing
-  const id = await ctx.db.insert('conversations', { sellerId, customerId, state: 'idle', lastInboundAt: Date.now(), history: [] })
+  const id = await ctx.db.insert('conversations', { sellerId, customerId, state: 'idle', lastInboundAt, history: [] })
   return (await ctx.db.get(id))!
+}
+
+/**
+ * Seller replies by hand (coexistence numbers). When the seller types in the
+ * WhatsApp Business app, Stallo stops answering that customer so they never get
+ * two different replies. Each reply from the seller restarts the quiet period.
+ */
+export const SELLER_QUIET_MS = 30 * 60 * 1000
+
+export function sellerIsHandling(conversation: Pick<Doc<'conversations'>, 'sellerActiveUntil'> | null, now = Date.now()) {
+  return conversation?.sellerActiveUntil !== undefined && conversation.sellerActiveUntil > now
+}
+
+/** Records a reply the seller typed on their phone and pauses Stallo in that chat. */
+export async function recordSellerReply(
+  ctx: MutationCtx,
+  sellerId: Id<'sellers'>,
+  customerPhone: string,
+  reply: { id: string; text: string },
+): Promise<void> {
+  const customer = await findOrCreateCustomer(ctx, sellerId, customerPhone)
+  const conversation = await findOrCreateConversation(ctx, sellerId, customer._id, 0)
+  const history = conversation.history ?? []
+  if (history.some((h) => h.id === reply.id)) return // Meta sent the same echo again.
+  const now = Date.now()
+  await ctx.db.patch(conversation._id, {
+    history: [...history, { from: 'seller' as const, text: reply.text.slice(0, 500), at: now, id: reply.id }].slice(-HISTORY_LIMIT),
+    sellerActiveUntil: now + SELLER_QUIET_MS,
+  })
+}
+
+/** A customer wrote while the seller is replying by hand: keep it for context, but don't answer. */
+export async function recordWhileSellerHandling(ctx: MutationCtx, inbound: Doc<'inboundMessages'>, seller: Doc<'sellers'>, text: string) {
+  const customer = await findOrCreateCustomer(ctx, seller._id, inbound.from!, inbound.profileName)
+  const conversation = await findOrCreateConversation(ctx, seller._id, customer._id)
+  const now = Date.now()
+  await ctx.db.patch(conversation._id, {
+    history: [...(conversation.history ?? []), { from: 'customer' as const, text: text.slice(0, 500), at: now }].slice(-HISTORY_LIMIT),
+    lastInboundAt: now,
+  })
 }
 
 export async function activeProducts(ctx: MutationCtx, sellerId: Id<'sellers'>) {
