@@ -3,6 +3,8 @@ import { ForgotPasswordPage } from '../features/auth/ForgotPasswordPage'
 import { SignInPage } from '../features/auth/SignInPage'
 import { SignUpPage } from '../features/auth/SignUpPage'
 import { LandingPage } from '../features/landing/LandingPage'
+import { PrivacyPage } from '../features/legal/PrivacyPage'
+import { TermsPage } from '../features/legal/TermsPage'
 import { OrderDetailPage } from '../features/orders/OrderDetailPage'
 import { OrdersPage } from '../features/orders/OrdersPage'
 import { PaidPage } from '../features/payment/PaidPage'
@@ -17,6 +19,8 @@ import { NotFoundPage } from './NotFoundPage'
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
+  { path: '/privacy', element: <PrivacyPage /> },
+  { path: '/terms', element: <TermsPage /> },
   {
     element: <GuestOnly />,
     children: [

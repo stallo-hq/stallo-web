@@ -415,6 +415,8 @@ function Footer() {
           ))}
           <Link to="/signin">Sign in</Link>
           <Link to="/signup">Create account</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
         </nav>
       </div>
       <p className={styles.copyright}>© {YEAR} Stallo</p>

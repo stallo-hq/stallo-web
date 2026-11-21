@@ -130,7 +130,10 @@ export function SignUpPage() {
           <Button type="submit" variant="primary" size="lg" block loading={busy}>
             Create account
           </Button>
-          <p className={styles.terms}>No monthly fee. You only pay a small fee on orders that are paid.</p>
+          <p className={styles.terms}>
+            No monthly fee. You only pay a small fee on orders that are paid. By creating an account you agree to the{' '}
+            <Link to="/terms">terms</Link> and <Link to="/privacy">privacy policy</Link>.
+          </p>
         </form>
       )}
     </AuthLayout>
