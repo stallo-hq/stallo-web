@@ -36,7 +36,7 @@ export const mine = query({
       deliveryFeePesewas: seller.deliveryFeePesewas ?? 0,
       acceptsCash: seller.acceptsCash === true,
       feeBalancePesewas: seller.feeBalancePesewas ?? 0,
-      whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
+      whatsappConnected: seller.whatsappConnectedAt !== undefined,
       whatsappDisplayPhone: seller.whatsappDisplayPhone,
       payoutsConnected: seller.paystackSubaccountCode !== undefined,
       payout: seller.payout,

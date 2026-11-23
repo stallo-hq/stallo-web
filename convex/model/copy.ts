@@ -214,7 +214,7 @@ export const copy = {
     const receiver = receiverLabel(order)
     const who = receiver ? `Deliver to: ${receiver}\nOrdered by: ${customer}` : `Customer: ${customer}`
     const digital = order.digitalAddress ? `\nDigital address: ${order.digitalAddress}` : ''
-    return `New delivery for ${business}: order ${orderLabel(order)}.\n${who}\nAddress: ${order.address ?? 'ask the customer'}${digital}\n\nOpen this page for details and to confirm delivery:\n${link}\n\nWhen you hand over the order, ask for the 4-digit delivery code and send it here or on that page.`
+    return `New delivery for ${business}: order ${orderLabel(order)}.\n${who}\nAddress: ${order.address ?? 'ask the customer'}${digital}\n\nOpen this page for details and to confirm delivery:\n${link}\n\nWhen you hand over the order, ask for the 4-digit delivery code and enter it on that page.`
   },
 
   riderDelivered(order: Order) {
@@ -225,5 +225,23 @@ export const copy = {
     return attemptsLeft > 0
       ? `That code isn't right. Check it with the customer and try again (${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left).`
       : `That code isn't right and there are no tries left. The seller has been told.`
+  },
+
+  // To the seller, by SMS (Stallo has no number of its own on WhatsApp). Keep these short: 1 SMS part where possible.
+
+  sellerOrderPaid(order: Order, items: string, amount: string) {
+    return `Stallo: order ${orderLabel(order)} is paid (${amount}). ${items}. Open your dashboard to send it out.`
+  },
+
+  sellerAttention(summary: string) {
+    return `Stallo: ${summary.slice(0, 200)}`
+  },
+
+  sellerDailySummary(business: string, stats: { orders: number; paid: string; toDeliver: number; attention: number }) {
+    return `Stallo, ${business} today: ${stats.orders} orders, ${stats.paid} paid, ${stats.toDeliver} to deliver, ${stats.attention} need attention.`
+  },
+
+  sellerWhatsAppDisconnected(business: string) {
+    return `Stallo: WhatsApp for ${business} was unlinked, so Stallo can't read or reply to orders. Open Settings > WhatsApp to link it again.`
   },
 }

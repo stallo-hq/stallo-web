@@ -64,13 +64,14 @@ export function PrivacyPage() {
       <p>Only with the services Stallo needs to work, and only what each one needs:</p>
       <ul>
         <li>
-          <strong>Meta (WhatsApp Business Platform):</strong> to receive and send WhatsApp messages.
+          <strong>WhatsApp (Meta):</strong> messages travel over WhatsApp. Stallo reads and sends them through the seller’s own WhatsApp,
+          linked as a device to a server Stallo runs.
         </li>
         <li>
           <strong>Paystack:</strong> to take payments, pay sellers and process refunds.
         </li>
         <li>
-          <strong>SasuSync:</strong> to send SMS sign-up codes and delivery codes.
+          <strong>SasuSync:</strong> to send SMS sign-up codes, delivery codes, rider job links and alerts to sellers.
         </li>
         <li>
           <strong>AI providers (Groq, and Anthropic when enabled):</strong> to read order messages and pictures.

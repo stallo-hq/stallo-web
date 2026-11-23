@@ -20,8 +20,11 @@ Set these on the Convex deployment (`npx convex env set NAME value`, or in the C
 
 | Name | Needed for | Notes |
 |---|---|---|
-| `SASUSYNC_API_KEY` | Sign-up and password reset by SMS code | From the SasuSync portal (https://sms.sasusync.com) |
+| `SASUSYNC_API_KEY` | SMS: sign-up codes, rider job links, seller alerts, delivery codes when WhatsApp can't be used | From the SasuSync portal (https://sms.sasusync.com) |
 | `SASUSYNC_SENDER_ID` | Same | An approved sender ID, e.g. `Stallo` |
+| `EVOLUTION_API_URL` | WhatsApp | Public HTTPS address of Stallo's Evolution API server. See `infra/evolution/README.md` |
+| `EVOLUTION_API_KEY` | WhatsApp | Same value as `AUTHENTICATION_API_KEY` in `infra/evolution/.env` |
+| `EVOLUTION_WEBHOOK_SECRET` | WhatsApp | Random, 32+ characters. Evolution signs every webhook with it; unsigned calls are rejected |
 | `SMS_TEST_MODE` | Local development only | `true` = no SMS is sent and the code is always `123456`. **Never set in production.** |
 | `SMS_HOURLY_LIMIT` | Optional | Max codes sent per hour across the whole service (default 300) |
 | `PLATFORM_FEE_PERCENT` | Pricing | Stallo's fee per paid order, e.g. `2.5`. Shown on the website automatically |

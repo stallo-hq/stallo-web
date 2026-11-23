@@ -65,7 +65,7 @@ export const save = internalMutation({
         accountLast4: args.accountLast4,
         accountName: args.accountName,
       },
-      onboarding: seller.whatsappPhoneNumberId ? 'done' : seller.onboarding,
+      onboarding: seller.whatsappConnectedAt ? 'done' : seller.onboarding,
     })
     return null
   },

@@ -1,0 +1,47 @@
+# Stallo's WhatsApp gateway: Evolution API v2 + its Postgres (ADR 0002).
+# Setup and hosting notes: README.md in this folder. Secrets go in .env (git-ignored),
+# copied from .env.example.
+#
+#   docker compose up -d
+#
+# Evolution v2 always needs a database (Prisma). Redis is switched off (CACHE_REDIS_ENABLED=false);
+# sessions are kept in Postgres, so they survive restarts.
+
+name: stallo-evolution
+
+services:
+  evolution:
+    # Pinned: v2.3.7 is the newest stable tag checked for ADR 0002 (2026-11-23). Test before upgrading.
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/evolution?schema=public
+    # Only reachable from this machine. Put HTTPS in front (Cloudflare Tunnel or Caddy, see README).
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: evolution
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - evolution_postgres:/var/lib/postgresql/data
+
+volumes:
+  evolution_instances:
+  evolution_postgres:

@@ -12,7 +12,6 @@ import { errorMessage } from '../../lib/errors'
 import { formatGhanaPhone } from '../../lib/phone'
 import styles from './ConnectionPage.module.css'
 import { ConnectionPage, type ConnectionCopy } from './ConnectionPage'
-import { useEmbeddedSignup } from './useEmbeddedSignup'
 import { useIntegrations, usePayoutActions, useWhatsAppConnection } from './useSettings'
 
 const WHATSAPP: ConnectionCopy = {
@@ -25,9 +24,9 @@ const WHATSAPP: ConnectionCopy = {
     { title: 'You stay in control', text: 'Anything unclear comes to you under Needs attention instead of being guessed.' },
   ],
   checklist: [
-    'The WhatsApp number you sell on, and the phone it’s on (to receive a code)',
-    'A Facebook account to sign in to Meta during setup',
-    'Your business name as registered, if Meta asks for it',
+    'The phone with the WhatsApp or WhatsApp Business number you sell on',
+    'That phone connected to the internet',
+    'A minute to scan a code, the same way you link WhatsApp Web',
   ],
 }
 
@@ -47,108 +46,47 @@ const PAYOUTS: ConnectionCopy = {
 
 export function WhatsAppPage() {
   const seller = useSeller()
-  const integrations = useIntegrations()
-  if (seller === undefined || integrations === undefined) return <PageSpinner />
+  const { status, start, disconnect } = useWhatsAppConnection()
+  if (seller === undefined || status === undefined) return <PageSpinner />
   if (seller === null) return null
 
   return (
-    <ConnectionPage copy={WHATSAPP} connected={seller.whatsappConnected}>
-      {seller.whatsappConnected ? (
-        <WhatsAppConnected phone={seller.whatsappDisplayPhone} />
+    <ConnectionPage copy={WHATSAPP} connected={status.state === 'open'}>
+      {status.state === 'open' ? (
+        <WhatsAppConnected phone={status.phone ?? undefined} disconnect={disconnect} />
+      ) : !status.available ? (
+        <p>WhatsApp linking isn’t switched on for Stallo yet. Check back soon.</p>
       ) : (
-        <>
-          {integrations.embeddedSignup ? (
-            <EmbeddedSignup config={integrations.embeddedSignup} />
-          ) : (
-            <p>WhatsApp sign-up isn’t switched on for Stallo yet. Check back soon.</p>
-          )}
-          {integrations.manualWhatsApp && <ManualConnect />}
-        </>
+        <QrLink status={status} start={start} />
       )}
     </ConnectionPage>
   )
 }
 
-function WhatsAppConnected({ phone }: { phone?: string }) {
-  const { disconnect } = useWhatsAppConnection()
-  const [confirming, setConfirming] = useState(false)
-  return (
-    <>
-      <p>
-        Customers can order on <strong>{phone ? formatGhanaPhone(phone) : 'your WhatsApp number'}</strong>. Stallo replies within
-        seconds and brings anything unclear to you.
-      </p>
-      <Button variant="secondary" onClick={() => setConfirming(true)}>
-        Disconnect
-      </Button>
-      <ConfirmDialog
-        open={confirming}
-        onOpenChange={setConfirming}
-        title="Disconnect WhatsApp?"
-        description="Stallo will stop reading and replying to messages on this number. Orders already placed are kept."
-        confirmLabel="Disconnect"
-        destructive
-        onConfirm={async () => {
-          await disconnect({})
-          toast.success('WhatsApp disconnected')
-        }}
-      />
-    </>
-  )
+type LinkStatus = NonNullable<ReturnType<typeof useWhatsAppConnection>['status']>
+
+/** Counts down to `until`, so the button says when a new code can be asked for. */
+function useSecondsUntil(until: number) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (until <= Date.now()) return
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [until])
+  return Math.max(0, Math.ceil((until - now) / 1000))
 }
 
-function EmbeddedSignup({ config }: { config: { appId: string; configId: string; graphVersion: string } }) {
-  const { ready, loadError, start } = useEmbeddedSignup(config)
-  const { completeSignup } = useWhatsAppConnection()
-  const [busy, setBusy] = useState<'keep' | 'new' | null>(null)
-
-  async function connect(keepBusinessApp: boolean) {
-    setBusy(keepBusinessApp ? 'keep' : 'new')
-    try {
-      const result = await start(keepBusinessApp)
-      await completeSignup({ ...result, keepBusinessApp })
-      toast.success('WhatsApp connected')
-    } catch (err) {
-      toast.error(errorMessage(err))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  return (
-    <>
-      <p>Sign in to Meta in the window that opens and choose your number. It takes about five minutes.</p>
-      <div className={styles.choices}>
-        <Button variant="primary" size="lg" block loading={busy === 'keep'} disabled={!ready || busy !== null} onClick={() => void connect(true)}>
-          Use my WhatsApp Business number
-        </Button>
-        <span className={styles.choiceHint}>
-          Keep using the WhatsApp Business app on your phone as well. When you reply to a customer yourself, Stallo stays quiet in that chat for 30
-          minutes.
-        </span>
-        <Button variant="secondary" size="lg" block loading={busy === 'new'} disabled={!ready || busy !== null} onClick={() => void connect(false)}>
-          Use a new number
-        </Button>
-        <span className={styles.choiceHint}>A number that isn’t on WhatsApp yet. Stallo handles all its messages.</span>
-      </div>
-      {loadError && <p className={styles.error}>{loadError}</p>}
-    </>
-  )
-}
-
-function ManualConnect() {
-  const { connectManually } = useWhatsAppConnection()
-  const [id, setId] = useState('')
-  const [error, setError] = useState<string | null>(null)
+function QrLink({ status, start }: { status: LinkStatus; start: () => Promise<null> }) {
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const wait = useSecondsUntil(status.canStartAt)
+  const waiting = status.state === 'connecting'
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
+  async function showCode() {
     setError(null)
     setBusy(true)
     try {
-      await connectManually({ phoneNumberId: id })
-      toast.success('WhatsApp connected')
+      await start()
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -157,21 +95,57 @@ function ManualConnect() {
   }
 
   return (
-    <form className={styles.manual} onSubmit={(e) => void submit(e)} noValidate>
-      <strong>Test number</strong>
-      <span>Connect a number from Stallo’s own Meta account, such as Meta’s free test number.</span>
-      <Field
-        label="Phone number ID"
-        inputMode="numeric"
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-        error={error}
-        hint="From WhatsApp → API setup in the Meta developer dashboard."
-      />
-      <Button type="submit" variant="dark" loading={busy}>
-        Connect
+    <>
+      <ol className={styles.steps}>
+        <li>On your phone, open WhatsApp and go to Settings, then Linked devices.</li>
+        <li>Tap Link a device and point your phone at the code below.</li>
+        <li>Keep your phone on and connected. You can still use WhatsApp on it as normal.</li>
+      </ol>
+      {status.qr ? (
+        <img className={styles.qr} src={status.qr} alt="QR code to link your WhatsApp to Stallo" width={240} height={240} />
+      ) : waiting ? (
+        <p className={styles.qrWaiting}>Getting your code…</p>
+      ) : null}
+      <Button variant={status.qr ? 'secondary' : 'primary'} size="lg" loading={busy} disabled={wait > 0} onClick={() => void showCode()}>
+        {wait > 0 ? `New code in ${wait}s` : status.qr || waiting ? 'Show a new code' : 'Show QR code'}
       </Button>
-    </form>
+      {(error ?? status.error) && <p className={styles.error}>{error ?? status.error}</p>}
+      <p className={styles.choiceHint}>
+        Stallo only replies to people who message you first, and never sends promotions from your number. When you reply to a customer yourself,
+        Stallo stays quiet in that chat for 3 hours.
+      </p>
+    </>
+  )
+}
+
+function WhatsAppConnected({ phone, disconnect }: { phone?: string; disconnect: () => Promise<null> }) {
+  const [confirming, setConfirming] = useState(false)
+  return (
+    <>
+      <p>
+        Customers can order on <strong>{phone ? formatGhanaPhone(phone) : 'your WhatsApp number'}</strong>. Stallo replies within
+        seconds and brings anything unclear to you. When you reply to a customer yourself, Stallo stays quiet in that chat for 3 hours.
+      </p>
+      <Button variant="secondary" onClick={() => setConfirming(true)}>
+        Disconnect
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        onOpenChange={setConfirming}
+        title="Disconnect WhatsApp?"
+        description="Stallo will unlink from your phone and stop reading and replying to messages on this number. Orders already placed are kept."
+        confirmLabel="Disconnect"
+        destructive
+        onConfirm={async () => {
+          try {
+            await disconnect()
+            toast.success('WhatsApp disconnected')
+          } catch (err) {
+            toast.error(errorMessage(err))
+          }
+        }}
+      />
+    </>
   )
 }
 

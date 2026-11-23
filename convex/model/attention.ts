@@ -1,11 +1,11 @@
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
-import { queueMessage } from './outbound'
+import { textSeller } from './alerts'
+import { copy } from './copy'
 
 /**
- * Adds an item to the seller's Needs attention list, and tells them on
- * WhatsApp when asked to (only if Stallo's own number is set up). Doesn't
- * repeat an open item of the same kind for the same order.
+ * Adds an item to the seller's Needs attention list, and texts the seller when
+ * asked to. Doesn't repeat an open item of the same kind for the same order.
  */
 export async function raiseAttention(
   ctx: MutationCtx,
@@ -36,12 +36,6 @@ export async function raiseAttention(
   })
   if (item.notify) {
     const seller = await ctx.db.get(item.sellerId)
-    if (seller) {
-      await queueMessage(ctx, {
-        sellerId: seller._id,
-        to: seller.phone,
-        template: { name: 'stallo_seller_attention', params: [item.summary.slice(0, 200)] },
-      })
-    }
+    if (seller) await textSeller(ctx, seller, copy.sellerAttention(item.summary))
   }
 }

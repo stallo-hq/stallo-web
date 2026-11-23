@@ -42,10 +42,14 @@ export default defineSchema({
     businessName: v.string(),
     phone: v.string(),
     onboarding: onboardingState,
-    whatsappPhoneNumberId: v.optional(v.string()),
-    whatsappBusinessAccountId: v.optional(v.string()),
+    // The seller's WhatsApp session on our Evolution API server (ADR 0002). Set when a QR
+    // code is first requested. `whatsappConnectedAt` is set while the phone is linked.
+    whatsappInstance: v.optional(v.string()),
     whatsappDisplayPhone: v.optional(v.string()),
     whatsappConnectedAt: v.optional(v.number()),
+    // Legacy (Meta Cloud API, ADR 0001). Emptied by migrations.clearMetaFields; remove afterwards.
+    whatsappPhoneNumberId: v.optional(v.string()),
+    whatsappBusinessAccountId: v.optional(v.string()),
     paystackSubaccountCode: v.optional(v.string()),
     payout: v.optional(
       v.object({
@@ -74,9 +78,25 @@ export default defineSchema({
     feeBalancePesewas: v.optional(v.number()),
   })
     .index('by_owner', ['ownerId'])
-    .index('by_whatsapp_phone_number_id', ['whatsappPhoneNumberId']),
+    .index('by_whatsapp_instance', ['whatsappInstance'])
+    .index('by_whatsapp_display_phone', ['whatsappDisplayPhone']),
+
+  // Linking a seller's phone: the live QR code and session state. Kept apart from
+  // `sellers` so QR refreshes don't re-run every query that reads the seller.
+  whatsappSessions: defineTable({
+    sellerId: v.id('sellers'),
+    instance: v.string(),
+    state: v.union(v.literal('connecting'), v.literal('open'), v.literal('close')),
+    qr: v.optional(v.string()),
+    qrUpdatedAt: v.optional(v.number()),
+    startedAt: v.number(),
+    error: v.optional(v.string()),
+  })
+    .index('by_seller', ['sellerId'])
+    .index('by_instance', ['instance']),
 
   // Server-only credentials per seller. Never returned by any public function.
+  // Legacy: only ever held the Meta token (ADR 0001). Emptied by migrations.clearMetaFields.
   sellerSecrets: defineTable({
     sellerId: v.id('sellers'),
     whatsappToken: v.optional(v.string()),
@@ -107,8 +127,8 @@ export default defineSchema({
     draftOrderId: v.optional(v.id('orders')),
     lastInboundAt: v.number(),
     // Recent turns, newest last, so the assistant has context. Capped in model/conversation.ts.
-    // `seller` turns are replies the seller typed in the WhatsApp Business app (coexistence);
-    // `id` is the WhatsApp message id of such a reply, so Meta's retries aren't added twice.
+    // `seller` turns are replies the seller typed on their own phone.
+    // `id` is the WhatsApp message id of such a reply, so webhook retries aren't added twice.
     history: v.optional(
       v.array(
         v.object({
@@ -126,7 +146,9 @@ export default defineSchema({
   inboundMessages: defineTable({
     whatsappMessageId: v.string(),
     sellerId: v.optional(v.id('sellers')),
-    // The WhatsApp number it was sent to, and who sent it (E.164).
+    // The seller's Evolution session it arrived on, and who sent it (E.164).
+    instance: v.optional(v.string()),
+    // Legacy (Meta): the number id it was sent to.
     phoneNumberId: v.optional(v.string()),
     from: v.optional(v.string()),
     profileName: v.optional(v.string()),
@@ -141,7 +163,7 @@ export default defineSchema({
   })
     .index('by_whatsapp_message_id', ['whatsappMessageId'])
     .index('by_status_and_received', ['status', 'receivedAt'])
-    .index('by_number_and_from', ['phoneNumberId', 'from', 'receivedAt']),
+    .index('by_seller_from_received', ['sellerId', 'from', 'receivedAt']),
 
   orders: defineTable({
     sellerId: v.id('sellers'),
@@ -234,17 +256,28 @@ export default defineSchema({
     sellerId: v.id('sellers'),
     channel: v.optional(messageChannel),
     recipient: v.string(),
-    // Free-form text, used inside the 24-hour window. The template is the fallback outside it.
     text: v.optional(v.string()),
-    template: v.optional(v.string()),
-    templateParams: v.optional(v.array(v.string())),
+    // Must reach the person even if they haven't written recently (delivery code, cancellation):
+    // goes by SMS when the inbound-only rule doesn't allow WhatsApp (ADR 0002).
+    smsFallback: v.optional(v.boolean()),
+    via: v.optional(v.union(v.literal('whatsapp'), v.literal('sms'))),
     orderId: v.optional(v.id('orders')),
     status: processingStatus,
     attempts: v.optional(v.number()),
+    // Set while a send is in flight. Counts toward the seller's hourly limit from then on.
+    sendingAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+    // Held back by the hourly limit until then.
+    notBefore: v.optional(v.number()),
     whatsappMessageId: v.optional(v.string()),
     error: v.optional(v.string()),
     createdAt: v.number(),
+    // Legacy (Meta templates, ADR 0001).
+    template: v.optional(v.string()),
+    templateParams: v.optional(v.array(v.string())),
   })
     .index('by_seller', ['sellerId'])
+    .index('by_seller_and_sent', ['sellerId', 'sentAt'])
+    .index('by_seller_recipient_status', ['sellerId', 'recipient', 'status'])
     .index('by_whatsapp_message_id', ['whatsappMessageId']),
 })

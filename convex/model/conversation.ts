@@ -57,7 +57,7 @@ export async function findOrCreateConversation(
   ctx: MutationCtx,
   sellerId: Id<'sellers'>,
   customerId: Id<'customers'>,
-  // A chat the seller starts from their phone hasn't opened WhatsApp's 24-hour window.
+  // A chat the seller starts from their phone doesn't open the 24-hour reply window (ADR 0002: inbound only).
   lastInboundAt = Date.now(),
 ): Promise<Doc<'conversations'>> {
   const existing = await ctx.db
@@ -70,11 +70,12 @@ export async function findOrCreateConversation(
 }
 
 /**
- * Seller replies by hand (coexistence numbers). When the seller types in the
- * WhatsApp Business app, Stallo stops answering that customer so they never get
- * two different replies. Each reply from the seller restarts the quiet period.
+ * Human takeover. When the seller types to a customer on their own phone,
+ * Stallo stops answering that customer so they never get two different replies.
+ * Each reply from the seller restarts the quiet period. The seller can hand the
+ * chat back sooner from the dashboard.
  */
-export const SELLER_QUIET_MS = 30 * 60 * 1000
+export const SELLER_QUIET_MS = 3 * 60 * 60 * 1000
 
 export function sellerIsHandling(conversation: Pick<Doc<'conversations'>, 'sellerActiveUntil'> | null, now = Date.now()) {
   return conversation?.sellerActiveUntil !== undefined && conversation.sellerActiveUntil > now
@@ -90,7 +91,7 @@ export async function recordSellerReply(
   const customer = await findOrCreateCustomer(ctx, sellerId, customerPhone)
   const conversation = await findOrCreateConversation(ctx, sellerId, customer._id, 0)
   const history = conversation.history ?? []
-  if (history.some((h) => h.id === reply.id)) return // Meta sent the same echo again.
+  if (history.some((h) => h.id === reply.id)) return // A webhook retry of the same message.
   const now = Date.now()
   await ctx.db.patch(conversation._id, {
     history: [...history, { from: 'seller' as const, text: reply.text.slice(0, 500), at: now, id: reply.id }].slice(-HISTORY_LIMIT),
