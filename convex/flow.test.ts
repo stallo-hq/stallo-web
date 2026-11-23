@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { claudeAnswer, mockFetch, seller, setup, type T } from '../test/convexTest'
 import { api } from './_generated/api'
 import type { Id } from './_generated/dataModel'
+import { WEBHOOK_SECRET, evolutionAuth, textUpsert, upsert } from '../test/evolution'
 import type { Extraction } from './integrations/assistant'
 import { hmacHex } from './model/crypto'
 
 /**
  * End to end through the real webhooks, scheduler and integrations, with
- * WhatsApp, Claude and Paystack replaced by a fake fetch.
+ * Evolution (WhatsApp), Claude, SasuSync and Paystack replaced by a fake fetch.
  */
 
-const SELLER_NUMBER_ID = '111000111'
+const INSTANCE = 'stallo-test0001'
+const EVOLUTION = 'evolution.test'
 const CUSTOMER_WA = '233201112222'
 const CUSTOMER = '+233201112222'
 const RIDER = '+233271234567'
@@ -20,54 +22,21 @@ function answer(partial: Partial<Extraction>): Extraction {
 }
 
 let messageCounter = 0
-async function whatsappWebhook(t: T, text: string, from = CUSTOMER_WA, opts: { id?: string; secret?: string } = {}) {
-  const body = JSON.stringify({
-    object: 'whatsapp_business_account',
-    entry: [
-      {
-        changes: [
-          {
-            field: 'messages',
-            value: {
-              metadata: { phone_number_id: SELLER_NUMBER_ID },
-              contacts: [{ wa_id: from, profile: { name: 'Kofi' } }],
-              messages: [{ id: opts.id ?? `wamid.in.${++messageCounter}`, from, type: 'text', text: { body: text } }],
-            },
-          },
-        ],
-      },
-    ],
-  })
-  return t.fetch('/whatsapp/webhook', {
+async function evolutionWebhook(t: T, payload: unknown, secret = WEBHOOK_SECRET) {
+  return t.fetch('/evolution/webhook', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-hub-signature-256': `sha256=${await hmacHex('SHA-256', opts.secret ?? 'app-secret', body)}` },
-    body,
+    headers: { 'content-type': 'application/json', authorization: await evolutionAuth(secret) },
+    body: JSON.stringify(payload),
   })
 }
 
-/** The seller typed a reply in the WhatsApp Business app on their phone (coexistence). */
-async function sellerEcho(t: T, text: string, to = CUSTOMER_WA, id = `wamid.echo.${++messageCounter}`) {
-  const body = JSON.stringify({
-    object: 'whatsapp_business_account',
-    entry: [
-      {
-        changes: [
-          {
-            field: 'smb_message_echoes',
-            value: {
-              metadata: { phone_number_id: SELLER_NUMBER_ID },
-              message_echoes: [{ id, from: '233200000000', to, type: 'text', text: { body: text } }],
-            },
-          },
-        ],
-      },
-    ],
-  })
-  return t.fetch('/whatsapp/webhook', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-hub-signature-256': `sha256=${await hmacHex('SHA-256', 'app-secret', body)}` },
-    body,
-  })
+async function whatsappWebhook(t: T, text: string, from = CUSTOMER_WA, opts: { id?: string; secret?: string } = {}) {
+  return evolutionWebhook(t, textUpsert(INSTANCE, from, text, opts.id ?? `IN${++messageCounter}`), opts.secret)
+}
+
+/** The seller typed a message to a customer on their own phone (fromMe, not sent by Stallo). */
+async function sellerEcho(t: T, text: string, to = CUSTOMER_WA, id = `ME${++messageCounter}`) {
+  return evolutionWebhook(t, textUpsert(INSTANCE, to, text, id, true))
 }
 
 async function paystackWebhook(t: T, event: string, data: Record<string, unknown>) {
@@ -87,18 +56,18 @@ async function world() {
   const ama = await seller(t, '+233241234567', 'Ama’s Kitchen')
   const sellerId = (await ama.query(api.sellers.mine, {}))!._id
   const productId = await t.run(async (ctx) => {
-    await ctx.db.patch(sellerId, { whatsappPhoneNumberId: SELLER_NUMBER_ID, paystackSubaccountCode: 'ACCT_test' })
+    // Linked a month ago, so the 60-an-hour limit applies.
+    await ctx.db.patch(sellerId, { whatsappInstance: INSTANCE, whatsappConnectedAt: Date.now() - 30 * 24 * 3600_000, paystackSubaccountCode: 'ACCT_test' })
+    await ctx.db.insert('whatsappSessions', { sellerId, instance: INSTANCE, state: 'open', startedAt: Date.now() })
     return ctx.db.insert('products', { sellerId, name: 'Jollof with chicken', pricePesewas: 6500, stock: 5, active: true })
   })
 
   const answers: unknown[] = []
   const paystack = { amount: 0 }
   const calls = mockFetch({
-    'graph.facebook.com/': (url) =>
-      url.pathname.endsWith('/media-1')
-        ? { url: 'https://lookaside.fbsbx.com/whatsapp_business/attachments/media-1', mime_type: 'image/jpeg', file_size: 4 }
-        : { messages: [{ id: `wamid.out.${Math.random()}` }] },
-    'lookaside.fbsbx.com/': () => new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { headers: { 'content-type': 'image/jpeg' } }),
+    [`${EVOLUTION}/message/sendText/`]: () => ({ key: { id: `OUT${Math.random().toString(16).slice(2)}`, fromMe: true }, status: 'PENDING' }),
+    [`${EVOLUTION}/chat/markMessageAsRead/`]: () => ({ message: 'Read messages', read: 'success' }),
+    [`${EVOLUTION}/chat/getBase64FromMediaMessage/`]: () => ({ mediaType: 'imageMessage', mimetype: 'image/jpeg', base64: '/9j/2Q==' }),
     'api.anthropic.com/v1/messages': () => claudeAnswer(answers.shift() ?? answer({ intent: 'other', confidence: 0.2 })),
     'sms.sasusync.com/api/v1/send': () => ({ success: true, data: { status: 'queued' } }),
     'api.paystack.co/transaction/initialize': (_url, init) => {
@@ -119,9 +88,10 @@ async function world() {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  vi.stubEnv('WHATSAPP_APP_SECRET', 'app-secret')
-  vi.stubEnv('WHATSAPP_ACCESS_TOKEN', 'test-token')
-  vi.stubEnv('WHATSAPP_VERIFY_TOKEN', 'verify-me')
+  vi.stubEnv('EVOLUTION_API_URL', `https://${EVOLUTION}`)
+  vi.stubEnv('EVOLUTION_API_KEY', 'evolution-key')
+  vi.stubEnv('EVOLUTION_WEBHOOK_SECRET', WEBHOOK_SECRET)
+  vi.stubEnv('CONVEX_SITE_URL', 'https://stallo-test.convex.site')
   vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
   vi.stubEnv('PAYSTACK_SECRET_KEY', 'sk_test_flow')
   vi.stubEnv('PAYSTACK_WEBHOOK_SECRET', '')
@@ -143,32 +113,32 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('WhatsApp webhook', () => {
-  it('answers Meta’s verification only with the right token', async () => {
+describe('WhatsApp webhook (Evolution)', () => {
+  it('rejects a token signed with the wrong secret, or none, and stores nothing', async () => {
     const { t } = await world()
-    const ok = await t.fetch('/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=42')
-    expect(ok.status).toBe(200)
-    expect(await ok.text()).toBe('42')
-    expect((await t.fetch('/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=42')).status).toBe(403)
-  })
-
-  it('rejects a bad signature and stores nothing', async () => {
-    const { t } = await world()
-    expect((await whatsappWebhook(t, 'Hi', CUSTOMER_WA, { secret: 'wrong' })).status).toBe(401)
+    expect((await whatsappWebhook(t, 'Hi', CUSTOMER_WA, { secret: 'not-the-secret-0123456789abcdefghij' })).status).toBe(401)
+    const unsigned = await t.fetch('/evolution/webhook', { method: 'POST', body: JSON.stringify(textUpsert(INSTANCE, CUSTOMER_WA, 'Hi', 'X1')) })
+    expect(unsigned.status).toBe(401)
     expect(await t.run((ctx) => ctx.db.query('inboundMessages').collect())).toEqual([])
   })
 
-  it('rejects everything when the app secret is not set', async () => {
+  it('rejects everything when the webhook secret is not set', async () => {
     const { t } = await world()
-    vi.stubEnv('WHATSAPP_APP_SECRET', '')
+    vi.stubEnv('EVOLUTION_WEBHOOK_SECRET', '')
     expect((await whatsappWebhook(t, 'Hi')).status).toBe(401)
   })
 
-  it('handles Meta’s retries of the same message once', async () => {
+  it('ignores messages for a session Stallo doesn’t know', async () => {
+    const { t } = await world()
+    expect((await evolutionWebhook(t, textUpsert('stallo-unknown', CUSTOMER_WA, 'Hi', 'U1'))).status).toBe(200)
+    expect(await t.run((ctx) => ctx.db.query('inboundMessages').collect())).toEqual([])
+  })
+
+  it('handles retries of the same message once', async () => {
     const { t, answers, sent } = await world()
     answers.push(answer({ intent: 'greeting' }), answer({ intent: 'greeting' }))
-    expect((await whatsappWebhook(t, 'Hello', CUSTOMER_WA, { id: 'wamid.same' })).status).toBe(200)
-    expect((await whatsappWebhook(t, 'Hello', CUSTOMER_WA, { id: 'wamid.same' })).status).toBe(200)
+    expect((await whatsappWebhook(t, 'Hello', CUSTOMER_WA, { id: 'SAME' })).status).toBe(200)
+    expect((await whatsappWebhook(t, 'Hello', CUSTOMER_WA, { id: 'SAME' })).status).toBe(200)
     await settle(t)
     expect(await t.run((ctx) => ctx.db.query('inboundMessages').collect())).toHaveLength(1)
     const replies = (await sent()).filter((m) => m.recipient === CUSTOMER)
@@ -276,8 +246,8 @@ describe('seller replies from their phone', () => {
   it('stays quiet in that chat while the seller is replying, then answers again', async () => {
     const { t, answers, calls, sent } = await world()
     const assistantCalls = () => calls.filter((c) => c.url.includes('api.anthropic.com')).length
-    expect((await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'wamid.echo.same')).status).toBe(200)
-    await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'wamid.echo.same') // Meta's retry
+    expect((await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'ECHO_SAME')).status).toBe(200)
+    await sellerEcho(t, 'Hi Kofi, what would you like?', CUSTOMER_WA, 'ECHO_SAME') // a webhook retry
     await whatsappWebhook(t, 'Two jollof please')
     await settle(t)
 
@@ -293,8 +263,14 @@ describe('seller replies from their phone', () => {
       expect.objectContaining({ status: 'done' }),
     ])
 
-    // 31 minutes after the seller's last reply, Stallo answers again.
-    vi.advanceTimersByTime(31 * 60 * 1000)
+    // Still quiet after 2 hours.
+    vi.advanceTimersByTime(2 * 60 * 60 * 1000)
+    await whatsappWebhook(t, 'Are you there?')
+    await settle(t)
+    expect(await sent()).toEqual([])
+
+    // 3 hours after the seller's last reply, Stallo answers again.
+    vi.advanceTimersByTime(61 * 60 * 1000)
     answers.push(answer({ intent: 'greeting' }))
     await whatsappWebhook(t, 'Hello?')
     await settle(t)
@@ -332,7 +308,7 @@ describe('seller replies from their phone', () => {
   it('tells the assistant what the seller said', async () => {
     const { t, answers, calls } = await world()
     await sellerEcho(t, 'Delivery is free today')
-    vi.advanceTimersByTime(31 * 60 * 1000)
+    vi.advanceTimersByTime(3 * 60 * 60 * 1000 + 60_000)
     answers.push(answer({ intent: 'greeting' }))
     await whatsappWebhook(t, 'Hi')
     await settle(t)
@@ -412,29 +388,15 @@ describe('customer asks for the delivery code', () => {
 })
 
 async function pictureWebhook(t: T, caption?: string) {
-  const body = JSON.stringify({
-    entry: [
-      {
-        changes: [
-          {
-            field: 'messages',
-            value: {
-              metadata: { phone_number_id: SELLER_NUMBER_ID },
-              contacts: [{ wa_id: CUSTOMER_WA, profile: { name: 'Kofi' } }],
-              messages: [
-                { id: `wamid.in.${++messageCounter}`, from: CUSTOMER_WA, type: 'image', image: { id: 'media-1', mime_type: 'image/jpeg', caption } },
-              ],
-            },
-          },
-        ],
-      },
-    ],
-  })
-  return t.fetch('/whatsapp/webhook', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-hub-signature-256': `sha256=${await hmacHex('SHA-256', 'app-secret', body)}` },
-    body,
-  })
+  return evolutionWebhook(
+    t,
+    upsert(INSTANCE, {
+      key: { remoteJid: `${CUSTOMER_WA}@s.whatsapp.net`, fromMe: false, id: `IMG${++messageCounter}` },
+      pushName: 'Kofi',
+      messageType: 'imageMessage',
+      message: { imageMessage: { mimetype: 'image/jpeg', ...(caption ? { caption } : {}) } },
+    }),
+  )
 }
 
 describe('customer sends a picture', () => {
@@ -519,7 +481,7 @@ describe('ordering for someone else', () => {
     await settle(t)
     const buyerText = (await sent()).find((m) => m.recipient === CUSTOMER && m.text?.includes('delivery code'))!.text!
     const pin = /delivery code is (\d{4})/.exec(buyerText)![1]
-    const sms = calls.filter((c) => c.url.includes('sms.sasusync.com/api/v1/send'))
+    const sms = calls.filter((c) => c.url.includes('sms.sasusync.com/api/v1/send') && JSON.stringify(c.body).includes('233245551234'))
     expect(sms).toHaveLength(1)
     expect(sms[0].body).toMatchObject({ sender: 'Stallo', recipients: ['233245551234'] })
     expect((sms[0].body as { message: string }).message).toContain(`Your delivery code is ${pin}`)

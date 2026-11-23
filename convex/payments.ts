@@ -354,7 +354,7 @@ export const finishCancel = internalMutation({
         to: customer.phone,
         orderId,
         text: copy.cancelledBySeller(seller.businessName, cancelled, refunded),
-        template: { name: 'stallo_order_cancelled', params: [seller.businessName, orderLabel(order)] },
+        smsFallback: true,
       })
     }
     return null

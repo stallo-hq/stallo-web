@@ -73,7 +73,7 @@ export async function checkPin(ctx: MutationCtx, delivery: Doc<'deliveries'>, pi
     to: customer.phone,
     orderId: order._id,
     text: copy.delivered(seller.businessName, order),
-    template: { name: 'stallo_order_delivered', params: [seller.businessName, orderLabel(order)] },
+    smsFallback: true,
   })
   return { ok: true }
 }
@@ -97,7 +97,7 @@ export async function markDeliveryFailed(ctx: MutationCtx, delivery: Doc<'delive
     to: customer.phone,
     orderId: order._id,
     text: copy.deliveryFailed(seller.businessName, order),
-    template: { name: 'stallo_delivery_failed', params: [seller.businessName, orderLabel(order)] },
+    smsFallback: true,
   })
 }
 

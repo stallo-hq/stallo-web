@@ -6,7 +6,7 @@ import { mapsUrl } from './lib/address'
 import { formatCedis } from './lib/money'
 import { toE164Ghana } from './lib/phone'
 import { assertOwned, requireSeller } from './model/auth'
-import { copy, receiverLabel } from './model/copy'
+import { copy } from './model/copy'
 import { randomDigits, randomToken, sha256 } from './model/crypto'
 import { PIN_LENGTH, checkPin, hashPin, markDeliveryFailed, restock, MAX_PIN_ATTEMPTS } from './model/delivery'
 import { orderLabel, transition } from './model/orders'
@@ -26,14 +26,15 @@ async function sendDeliveryCode(
     to: customer.phone,
     orderId: order._id,
     text: copy.deliveryPin(seller.businessName, order, riderName, pin),
-    template: { name: 'stallo_delivery_pin', params: [seller.businessName, orderLabel(order), riderName, pin] },
+    smsFallback: true,
   })
   if (order.recipientPhone && order.recipientPhone !== customer.phone) {
-    await ctx.scheduler.runAfter(0, internal.sms.sendDeliveryCode, {
+    await queueMessage(ctx, {
       sellerId: seller._id,
       orderId: order._id,
       to: order.recipientPhone,
       text: copy.recipientPin(seller.businessName, order, customer.name ?? 'Someone', riderName, pin),
+      via: 'sms',
     })
   }
 }
@@ -113,17 +114,13 @@ export const applyDispatch = internalMutation({
     await sendDeliveryCode(ctx, { seller, order: dispatched, customer, riderName, pin: args.pin })
     const link = riderLink(args.token)
     const customerLabel = customer.name ? `${customer.name} (${customer.phone})` : customer.phone
-    const receiver = receiverLabel(order)
-    const who = receiver ? `${receiver}, ordered by ${customerLabel}` : customerLabel
+    // Riders haven't written to the seller, so the job goes by SMS (ADR 0002: Stallo never starts WhatsApp chats).
     await queueMessage(ctx, {
       sellerId: seller._id,
-      to: riderPhone,
       orderId: order._id,
+      to: riderPhone,
       text: copy.riderJob(seller.businessName, dispatched, customerLabel, link, riderFee ?? undefined),
-      template: {
-        name: 'stallo_rider_job',
-        params: [seller.businessName, orderLabel(order), who, order.address ?? 'Call the customer', link],
-      },
+      via: 'sms',
     })
     return null
   },

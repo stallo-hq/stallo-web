@@ -1,38 +1,37 @@
 import type { Id } from '../_generated/dataModel'
 import { internal } from '../_generated/api'
 import type { MutationCtx } from '../_generated/server'
-import { TEMPLATES, type TemplateName } from '../whatsapp/templates'
 
 export type OutgoingMessage = {
   sellerId: Id<'sellers'>
   to: string
-  /** Free-form text, used when the 24-hour window is open. */
-  text?: string
-  /** Approved template, used outside the window (or always, if there is no text). */
-  template?: { name: TemplateName; params: string[] }
+  text: string
+  /**
+   * The person must get this even if they haven't written recently (delivery code,
+   * delivered, cancelled). Without it, a message WhatsApp may not carry is dropped
+   * into Needs attention instead (ADR 0002: Stallo only replies on WhatsApp).
+   */
+  smsFallback?: boolean
+  /** Always by SMS: riders, receivers and the seller's own alerts, who haven't written to the seller's WhatsApp. */
+  via?: 'sms'
   orderId?: Id<'orders'>
   /** Keeps several messages from one step in order. */
   delayMs?: number
 }
 
 /**
- * Queues a WhatsApp message. The only way anything is sent: it's stored first,
- * then sent by outbound.send, which retries and records failures.
- * Messages to sellers go from Stallo's own number and are skipped when that isn't set up.
+ * Queues a message (WhatsApp from the seller's number, or SMS). The only way
+ * anything is sent: it's stored first, then sent by outbound.send, which checks
+ * the inbound-only rule and the hourly limit, retries, and records failures.
  */
-export async function queueMessage(ctx: MutationCtx, message: OutgoingMessage): Promise<Id<'outboundMessages'> | null> {
-  const channel = message.template ? TEMPLATES[message.template.name].channel : 'seller'
-  if (channel === 'platform' && !process.env.WHATSAPP_PLATFORM_PHONE_NUMBER_ID) return null
-  if (message.template && message.template.params.length !== TEMPLATES[message.template.name].params) {
-    throw new Error(`Template ${message.template.name} needs ${TEMPLATES[message.template.name].params} parameters`)
-  }
+export async function queueMessage(ctx: MutationCtx, message: OutgoingMessage): Promise<Id<'outboundMessages'>> {
   const id = await ctx.db.insert('outboundMessages', {
     sellerId: message.sellerId,
-    channel,
+    channel: 'seller',
     recipient: message.to,
     text: message.text,
-    template: message.template?.name,
-    templateParams: message.template?.params,
+    ...(message.smsFallback || message.via === 'sms' ? { smsFallback: true } : {}),
+    ...(message.via === 'sms' ? { via: 'sms' as const } : {}),
     orderId: message.orderId,
     status: 'pending',
     attempts: 0,
@@ -42,7 +41,7 @@ export async function queueMessage(ctx: MutationCtx, message: OutgoingMessage): 
   return id
 }
 
-/** Queues several messages to go out in the given order. */
+/** Queues several messages to go out in the given order (outbound.send also keeps each chat in order). */
 export async function queueInOrder(ctx: MutationCtx, messages: OutgoingMessage[]): Promise<void> {
   let delayMs = 0
   for (const message of messages) {

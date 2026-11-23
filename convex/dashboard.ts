@@ -49,7 +49,7 @@ export const today = query({
     return {
       setup: {
         hasProducts: anyProduct !== null,
-        whatsappConnected: seller.whatsappPhoneNumberId !== undefined,
+        whatsappConnected: seller.whatsappConnectedAt !== undefined,
         payoutsConnected: seller.paystackSubaccountCode !== undefined,
       },
       stats: {

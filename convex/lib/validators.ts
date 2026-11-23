@@ -57,9 +57,10 @@ export const attentionType = v.union(
   v.literal('processing_failed'),
   v.literal('refund_failed'),
   v.literal('message_failed'),
+  v.literal('whatsapp_disconnected'),
 )
 
-/** Which WhatsApp number a message goes out from: the seller's own, or Stallo's (seller notifications). */
+/** Which number a message goes out from. Only `seller` is used now; `platform` is legacy (Meta, ADR 0001). */
 export const messageChannel = v.union(v.literal('seller'), v.literal('platform'))
 
 export const payoutType = v.union(v.literal('mobile_money'), v.literal('bank'))

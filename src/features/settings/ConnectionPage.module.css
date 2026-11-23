@@ -34,21 +34,38 @@
   color: var(--text-3);
 }
 
-.manual,
 .form {
   display: grid;
   gap: 14px;
 }
 
-.manual {
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+.steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-2);
 }
 
-.manual > span {
-  margin-top: -10px;
-  font-size: 13.5px;
-  color: var(--text-2);
+/* Scanners need a light quiet zone around the code, whatever the theme. */
+.qr {
+  justify-self: start;
+  width: min(240px, 100%);
+  height: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.qrWaiting {
+  display: grid;
+  place-items: center;
+  width: min(240px, 100%);
+  aspect-ratio: 1;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+  font-size: 14px;
 }
 
 .formActions {

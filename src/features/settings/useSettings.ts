@@ -14,11 +14,12 @@ export function useIntegrations() {
   return useQuery(api.site.integrations)
 }
 
+/** Linking the seller's WhatsApp by QR code. `status` updates live while the phone scans. */
 export function useWhatsAppConnection() {
   return {
-    completeSignup: useAction(api.whatsappConnect.completeSignup),
-    connectManually: useAction(api.whatsappConnect.connectManually),
-    disconnect: useMutation(api.whatsappConnect.disconnect),
+    status: useQuery(api.whatsappConnect.status),
+    start: useAction(api.whatsappConnect.start),
+    disconnect: useAction(api.whatsappConnect.disconnect),
   }
 }
 

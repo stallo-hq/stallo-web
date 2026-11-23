@@ -1,6 +1,7 @@
 import type { Doc } from '../_generated/dataModel'
 import type { MutationCtx } from '../_generated/server'
 import { formatCedis } from '../lib/money'
+import { textSeller } from './alerts'
 import { raiseAttention } from './attention'
 import { copy } from './copy'
 import { itemsSummary, orderLabel } from './orders'
@@ -42,17 +43,13 @@ export async function startFulfilment(ctx: MutationCtx, order: Doc<'orders'>, se
   const cash = order.paymentMethod === 'cash'
   const text = cash && onlineAmount(order) === 0 ? copy.cashConfirmed(order, seller.businessName) : copy.paid(order, seller.businessName)
   await queueMessage(ctx, { sellerId: seller._id, to: customer.phone, orderId: order._id, text })
-  await queueMessage(ctx, {
-    sellerId: seller._id,
-    to: seller.phone,
-    orderId: order._id,
-    template: {
-      name: 'stallo_seller_order_paid',
-      params: [
-        orderLabel(order),
-        itemsSummary(order.items),
-        cash ? `${formatCedis(order.totalPesewas)} (${formatCedis(order.cashDuePesewas ?? 0)} in cash to the rider)` : formatCedis(order.totalPesewas),
-      ],
-    },
-  })
+  await textSeller(
+    ctx,
+    seller,
+    copy.sellerOrderPaid(
+      order,
+      itemsSummary(order.items),
+      cash ? `${formatCedis(order.totalPesewas)}, ${formatCedis(order.cashDuePesewas ?? 0)} in cash to the rider` : formatCedis(order.totalPesewas),
+    ),
+  )
 }
