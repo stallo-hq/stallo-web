@@ -87,6 +87,7 @@ export const create = mutation({
     if (photoId) await checkPhoto(ctx, photoId)
     const productId = await ctx.db.insert('products', { sellerId: seller._id, ...clean(args), photoId: photoId ?? undefined })
     if (photoId) await ctx.scheduler.runAfter(0, internal.vision.describeProduct, { productId })
+    await ctx.scheduler.runAfter(0, internal.matching.embedProduct, { productId })
     return productId
   },
 })
@@ -105,6 +106,8 @@ export const update = mutation({
     })
     if (photoChanged && product.photoId) await ctx.storage.delete(product.photoId)
     if (photoChanged && photoId) await ctx.scheduler.runAfter(0, internal.vision.describeProduct, { productId })
+    // Does nothing if the name (and photo description) didn't change.
+    await ctx.scheduler.runAfter(0, internal.matching.embedProduct, { productId })
     return null
   },
 })
@@ -117,6 +120,11 @@ export const remove = mutation({
     const seller = await requireSeller(ctx)
     const product = assertOwned(await ctx.db.get(productId), seller, 'Product')
     if (product.photoId) await ctx.storage.delete(product.photoId)
+    const embedding = await ctx.db
+      .query('productEmbeddings')
+      .withIndex('by_product', (q) => q.eq('productId', productId))
+      .unique()
+    if (embedding) await ctx.db.delete(embedding._id)
     await ctx.db.delete(productId)
     return null
   },

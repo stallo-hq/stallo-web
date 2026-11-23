@@ -16,7 +16,9 @@ import {
   recordWhileSellerHandling,
   sellerIsHandling,
 } from './model/conversation'
+import { rankProducts } from './matching'
 import { checkPin, isPinShaped } from './model/delivery'
+import { SHORTLIST_SIZE, shortlist } from './model/matching'
 import { queueMessage } from './model/outbound'
 
 /**
@@ -160,7 +162,7 @@ type Context =
       products: CatalogueItem[]
     }
   | { kind: 'location'; text: string; address: string; location: { lat: number; lng: number } }
-  | { kind: 'text'; text: string; assistant: AssistantInput }
+  | { kind: 'text'; text: string; sellerId: Id<'sellers'>; assistant: AssistantInput }
 
 /** Everything processing needs, read in one go. */
 export const context = internalQuery({
@@ -238,6 +240,7 @@ export const context = internalQuery({
     return {
       kind: 'text',
       text,
+      sellerId: seller._id,
       assistant: {
         businessName: seller.businessName,
         products: products.map((p) => ({
@@ -397,7 +400,16 @@ export const processMessage = internalAction({
           })
           return null
         case 'text': {
-          const result = await extract(c.assistant)
+          // Big catalogues: show the assistant the products closest to the message (and the basket).
+          const products =
+            c.assistant.products.length > SHORTLIST_SIZE
+              ? shortlist(
+                  c.assistant.products,
+                  await rankProducts(ctx, c.sellerId, c.text, SHORTLIST_SIZE),
+                  new Set(c.assistant.basket.map((b) => b.product_id)),
+                )
+              : c.assistant.products
+          const result = await extract({ ...c.assistant, products })
           await ctx.runMutation(internal.inbound.apply, {
             id,
             input: { kind: 'text', text: c.text, extraction: result, threshold: confidenceThreshold() },

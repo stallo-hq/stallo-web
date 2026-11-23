@@ -47,7 +47,11 @@ export const saveDescription = internalMutation({
   handler: async (ctx, { productId, photoId, description }) => {
     const product = await ctx.db.get(productId)
     // Only if the photo hasn't been changed again in the meantime.
-    if (product?.photoId === photoId) await ctx.db.patch(productId, { photoDescription: description })
+    if (product?.photoId === photoId) {
+      await ctx.db.patch(productId, { photoDescription: description })
+      // The description helps text matching too ("the red one").
+      await ctx.scheduler.runAfter(0, internal.matching.embedProduct, { productId })
+    }
     return null
   },
 })
