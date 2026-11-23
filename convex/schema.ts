@@ -113,6 +113,19 @@ export default defineSchema({
     photoDescription: v.optional(v.string()),
   }).index('by_seller', ['sellerId']),
 
+  // What each product "means" (Hugging Face sentence embedding of its name and photo
+  // description), to find the products a customer's message is about. One row per product.
+  productEmbeddings: defineTable({
+    productId: v.id('products'),
+    sellerId: v.id('sellers'),
+    // The text and model it was made from: re-embedded when either changes.
+    text: v.string(),
+    model: v.string(),
+    embedding: v.array(v.float64()),
+  })
+    .index('by_product', ['productId'])
+    .vectorIndex('by_embedding', { vectorField: 'embedding', dimensions: 384, filterFields: ['sellerId'] }),
+
   customers: defineTable({
     sellerId: v.id('sellers'),
     phone: v.string(),

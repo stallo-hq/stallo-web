@@ -25,6 +25,8 @@ Set these on the Convex deployment (`npx convex env set NAME value`, or in the C
 | `EVOLUTION_API_URL` | WhatsApp | Public HTTPS address of Stallo's Evolution API server. See `infra/evolution/README.md` |
 | `EVOLUTION_API_KEY` | WhatsApp | Same value as `AUTHENTICATION_API_KEY` in `infra/evolution/.env` |
 | `EVOLUTION_WEBHOOK_SECRET` | WhatsApp | Random, 32+ characters. Evolution signs every webhook with it; unsigned calls are rejected |
+| `HUGGINGFACE_API_KEY` | Product matching (optional) | Read-only token from huggingface.co/settings/tokens with "Make calls to Inference Providers". Without it the assistant sees the whole catalogue. After setting it, run `npx convex run matching:check`, then `npx convex run matching:backfill` |
+| `HUGGINGFACE_EMBED_MODEL` | Product matching (optional) | Defaults to `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`. Must give 384-long vectors |
 | `SMS_TEST_MODE` | Local development only | `true` = no SMS is sent and the code is always `123456`. **Never set in production.** |
 | `SMS_HOURLY_LIMIT` | Optional | Max codes sent per hour across the whole service (default 300) |
 | `PLATFORM_FEE_PERCENT` | Pricing | Stallo's fee per paid order, e.g. `2.5`. Shown on the website automatically |

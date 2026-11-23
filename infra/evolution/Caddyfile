@@ -1,0 +1,6 @@
+# HTTPS in front of Evolution. Caddy gets and renews a free Let's Encrypt certificate
+# for EVOLUTION_DOMAIN by itself (ports 80 and 443 must be open).
+{$EVOLUTION_DOMAIN} {
+	encode gzip
+	reverse_proxy evolution:8080
+}
