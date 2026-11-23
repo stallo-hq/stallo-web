@@ -15,6 +15,8 @@ seller's phone ──linked device── Evolution API (this folder) ──webho
 - A machine that stays on, with Docker and about 1 GB of free memory. Sessions are kept in Postgres and survive restarts, but while the server is down Stallo can't read or reply.
 - A public HTTPS address for it. Convex must reach it, and Evolution must reach Convex.
 
+**Recommended, free, nothing on your laptop:** Oracle Cloud Always Free server + Neon database, step by step in [ORACLE.md](ORACLE.md) (`docker-compose.neon.yml`, `setup-server.sh`).
+
 There is no completely free managed host that fits: Render's and Vercel's free tiers sleep or have no disk. Options that cost nothing:
 
 - an always-free cloud VM (for example Oracle Cloud's Always Free tier), or

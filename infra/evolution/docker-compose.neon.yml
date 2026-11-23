@@ -1,0 +1,44 @@
+# Stallo's WhatsApp gateway for a small cloud server, with the database on Neon (ADR 0002).
+# Evolution API v2 + Caddy for HTTPS. No Postgres container, so it fits a 1 GB server.
+# Step by step: ORACLE.md in this folder. Secrets go in .env (git-ignored), copied from .env.example.
+#
+#   docker compose -f docker-compose.neon.yml up -d
+#
+# .env must set DATABASE_CONNECTION_URI (Neon's *direct* connection string) and EVOLUTION_DOMAIN.
+
+name: stallo-evolution
+
+services:
+  evolution:
+    # Pinned: v2.3.7 is the newest stable tag checked for ADR 0002 (2026-11-23). Test before upgrading.
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: ${DATABASE_CONNECTION_URI:?set DATABASE_CONNECTION_URI (Neon, direct connection) in .env}
+    # Not published: only Caddy (same Docker network) reaches it.
+    expose:
+      - "8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - evolution
+    environment:
+      EVOLUTION_DOMAIN: ${EVOLUTION_DOMAIN:?set EVOLUTION_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  evolution_instances:
+  caddy_data:
+  caddy_config:
