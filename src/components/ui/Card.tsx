@@ -8,6 +8,7 @@ export function Card({
   description,
   actions,
   flush,
+  plain,
   className,
   children,
   ...rest
@@ -17,9 +18,11 @@ export function Card({
   actions?: ReactNode
   /** No inner padding, for lists and tables that run edge to edge. */
   flush?: boolean
+  /** No box: a heading over a thin rule. For sections of a page that don't need their own container. */
+  plain?: boolean
 } & Omit<HTMLAttributes<HTMLElement>, 'title'>) {
   return (
-    <section className={cx(styles.card, className)} {...rest}>
+    <section className={cx(plain ? styles.plain : styles.card, className)} {...rest}>
       {(title || actions) && (
         <header className={styles.header}>
           <div className={styles.heading}>
@@ -29,7 +32,7 @@ export function Card({
           {actions && <div className={styles.actions}>{actions}</div>}
         </header>
       )}
-      <div className={flush ? undefined : styles.body}>{children}</div>
+      <div className={flush || plain ? undefined : styles.body}>{children}</div>
     </section>
   )
 }

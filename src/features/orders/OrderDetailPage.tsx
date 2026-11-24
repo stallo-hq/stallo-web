@@ -114,7 +114,7 @@ export function OrderDetailPage() {
       <div className={styles.layout}>
         <div className={styles.main}>
           {order.attention.length > 0 && (
-            <Card title="Needs attention" flush>
+            <Card plain title="Needs attention" flush>
               <ul className={styles.attention}>
                 {order.attention.map((a) => (
                   <li key={a._id}>
@@ -171,11 +171,10 @@ export function OrderDetailPage() {
             </dl>
           </Card>
 
-          <Card title="History">
+          <Card plain title="History">
             <ol className={styles.timeline}>
               {[...order.timeline].reverse().map((step, i) => (
                 <li key={i}>
-                  <span className={styles.dot} data-tone={ORDER_STATUS[step.status].tone} />
                   <div>
                     <strong>{ORDER_STATUS[step.status].label}</strong>
                     {step.note && <span>{step.note}</span>}
@@ -188,7 +187,7 @@ export function OrderDetailPage() {
         </div>
 
         <div className={styles.side}>
-          <Card title="Customer">
+          <Card plain title="Customer">
             <dl className={styles.facts}>
               {order.customer.name && (
                 <div>
@@ -254,7 +253,7 @@ export function OrderDetailPage() {
             </div>
           </Card>
 
-          <Card title="Payment">
+          <Card plain title="Payment">
             <dl className={styles.facts}>
               {order.paymentMethod && (
                 <div>
@@ -302,7 +301,7 @@ export function OrderDetailPage() {
             )}
           </Card>
 
-          <Card title="Delivery">
+          <Card plain title="Delivery">
             {order.delivery ? (
               <dl className={styles.facts}>
                 <div>
@@ -356,7 +355,7 @@ export function OrderDetailPage() {
           try {
             const { riderLink } = await actions.dispatch({ orderId, ...rider })
             toast.success('Dispatched. The customer has their code.', {
-              description: 'The rider gets their link on WhatsApp. You can also send it yourself.',
+              description: 'The rider gets their link by SMS. You can also send it yourself.',
               duration: 20000,
               action: { label: 'Copy rider link', onClick: () => void navigator.clipboard.writeText(riderLink) },
             })

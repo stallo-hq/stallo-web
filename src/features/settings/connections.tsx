@@ -1,4 +1,4 @@
-import { CreditCard, MessageCircle, Smartphone } from 'lucide-react'
+import { Smartphone } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../components/ui/Button'
@@ -15,7 +15,6 @@ import { ConnectionPage, type ConnectionCopy } from './ConnectionPage'
 import { useIntegrations, usePayoutActions, useWhatsAppConnection } from './useSettings'
 
 const WHATSAPP: ConnectionCopy = {
-  icon: MessageCircle,
   title: 'WhatsApp',
   description: 'Connect the number your customers already message.',
   benefits: [
@@ -31,7 +30,6 @@ const WHATSAPP: ConnectionCopy = {
 }
 
 const PAYOUTS: ConnectionCopy = {
-  icon: CreditCard,
   title: 'Payouts',
   description: 'Choose where the money from your orders goes.',
   benefits: [

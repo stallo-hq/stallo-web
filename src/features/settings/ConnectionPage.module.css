@@ -19,7 +19,6 @@
 .statusHead {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -109,16 +108,6 @@
 
 .status strong {
   color: var(--text);
-}
-
-.statusIcon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: var(--accent-ink);
 }
 
 .details {

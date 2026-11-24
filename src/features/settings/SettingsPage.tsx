@@ -1,7 +1,7 @@
 import { DEFAULT_MIN_PASSWORD_LENGTH } from '@convex-dev/auth/methods/username-password'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { useQuery } from 'convex/react'
-import { ChevronRight, CreditCard, LogOut, MessageCircle } from 'lucide-react'
+import { ChevronRight, LogOut } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
@@ -43,7 +43,7 @@ function BusinessCard({ name, phone }: { name: string; phone: string }) {
   }
 
   return (
-    <Card title="Business" description="How customers see you in WhatsApp and on payment pages.">
+    <Card plain title="Business" description="How customers see you in WhatsApp and on payment pages.">
       <form onSubmit={save} noValidate className={styles.form}>
         <Field label="Business name" value={value} maxLength={80} onChange={(e) => setValue(e.target.value)} error={error} />
         <Field label="Phone number" value={formatGhanaPhone(phone)} readOnly hint="You sign in with this number. It can’t be changed here." />
@@ -79,6 +79,7 @@ function DeliveryAreasCard({ areas }: { areas: string }) {
 
   return (
     <Card
+      plain
       title="Delivery areas"
       description="Where you deliver. When a customer gives an address that looks outside these areas, Stallo tells them you will check, and flags the order for you."
     >
@@ -128,7 +129,7 @@ function DeliveryPaymentCard({ feePesewas, acceptsCash, balancePesewas }: { feeP
   }
 
   return (
-    <Card title="Delivery and payment" description="What customers pay for delivery, and how they can pay.">
+    <Card plain title="Delivery and payment" description="What customers pay for delivery, and how they can pay.">
       <form onSubmit={save} noValidate className={styles.form}>
         <Field
           label="Delivery fee"
@@ -162,9 +163,8 @@ function DeliveryPaymentCard({ feePesewas, acceptsCash, balancePesewas }: { feeP
   )
 }
 
-function ConnectionRow({ to, icon: Icon, title, text, connected }: {
+function ConnectionRow({ to, title, text, connected }: {
   to: string
-  icon: typeof MessageCircle
   title: string
   text: string
   connected: boolean
@@ -172,9 +172,6 @@ function ConnectionRow({ to, icon: Icon, title, text, connected }: {
   const status = connectionStatus(connected)
   return (
     <Link to={to} className={styles.connection}>
-      <span className={styles.connectionIcon}>
-        <Icon size={20} />
-      </span>
       <span className={styles.connectionText}>
         <strong>{title}</strong>
         <span>{text}</span>
@@ -214,7 +211,7 @@ function PasswordCard() {
   }
 
   return (
-    <Card title="Password" description="Changing it signs you out on every other device.">
+    <Card plain title="Password" description="Changing it signs you out on every other device.">
       <form onSubmit={save} noValidate className={styles.form}>
         <div className={styles.twoCols}>
           <PasswordField label="Current password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
@@ -254,24 +251,22 @@ export function SettingsPage() {
         />
         <DeliveryAreasCard key={seller.deliveryAreas ?? ''} areas={seller.deliveryAreas ?? ''} />
 
-        <Card title="Connections" description="What Stallo needs to take orders and pay you." flush>
+        <Card plain title="Connections" description="What Stallo needs to take orders and pay you." flush>
           <ConnectionRow
             to="/app/settings/whatsapp"
-            icon={MessageCircle}
             title="WhatsApp"
             text="Where customers send their orders"
             connected={seller.whatsappConnected}
           />
           <ConnectionRow
             to="/app/settings/payouts"
-            icon={CreditCard}
             title="Payouts"
             text="The MoMo or bank account you get paid to"
             connected={seller.payoutsConnected}
           />
         </Card>
 
-        <Card title="Fees" description="What Stallo costs. There is no monthly fee.">
+        <Card plain title="Fees" description="What Stallo costs. There is no monthly fee.">
           <p className={styles.fee}>
             {fee ? (
               <>
@@ -286,7 +281,7 @@ export function SettingsPage() {
 
         <PasswordCard />
 
-        <Card title="Sign out" description="Sign out of Stallo on this device.">
+        <Card plain title="Sign out" description="Sign out of Stallo on this device.">
           <Button icon={<LogOut size={17} />} onClick={() => void signOut().then(() => navigate('/', { replace: true }))}>
             Sign out
           </Button>

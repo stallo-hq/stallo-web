@@ -1,7 +1,20 @@
 .stack {
   display: grid;
-  gap: 20px;
-  max-width: 760px;
+  gap: 40px;
+  max-width: 880px;
+}
+
+/* Each section: what it is on the left, the controls on the right. */
+@media (min-width: 900px) {
+  .stack > section {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .stack > section > header {
+    padding-bottom: 0;
+  }
 }
 
 .form {
@@ -30,8 +43,8 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  min-height: 72px;
-  padding: 12px 16px 12px 20px;
+  min-height: 64px;
+  padding: 12px 8px 12px 0;
   text-decoration: none;
   color: inherit;
 }
@@ -40,22 +53,9 @@
   border-top: 1px solid var(--line);
 }
 
-.connection:hover {
-  background: var(--surface-2);
-}
-
-.connection:first-child {
-  margin-top: 6px;
-}
-
-.connectionIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--gray-soft);
+.connection:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .connectionText {
@@ -92,8 +92,8 @@
     flex-wrap: wrap;
   }
 
-  .connection > :nth-child(3) {
-    margin-left: 54px;
+  .connection > :nth-child(2) {
+    margin-top: 4px;
   }
 
   .chevron {
