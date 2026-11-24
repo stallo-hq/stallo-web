@@ -1,103 +1,90 @@
+/* ---------- Today's numbers: one strip, not four cards ---------- */
+
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
   margin: 20px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .stat {
   display: grid;
-  gap: 6px;
-  padding: 18px 20px;
-  border-radius: var(--r-lg);
-  background: var(--surface);
-  border: 1px solid var(--line);
+  align-content: start;
+  gap: 4px;
   min-width: 0;
+  padding: 18px 20px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--line);
+}
+
+a.stat:hover {
+  background: var(--surface-2);
 }
 
 .statLabel {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   font-size: 13.5px;
   color: var(--text-2);
 }
 
 .statValue {
-  font-size: 30px;
-  font-weight: 500;
-  letter-spacing: -0.03em;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.04em;
   line-height: 1.15;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.statHint {
+.statNote {
   font-size: 12.5px;
   color: var(--text-3);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1000px) {
   .stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stat:nth-child(3) {
+    border-left: 0;
+  }
+
+  .stat:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
   }
 }
 
 @media (max-width: 420px) {
-  .statValue {
-    font-size: 24px;
-  }
-
   .stat {
     padding: 14px 16px;
   }
-}
 
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
+  .statValue {
+    font-size: 24px;
   }
 }
 
 .cardLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   font-size: 14px;
   font-weight: 500;
-  text-decoration: none;
   color: var(--text);
+  text-underline-offset: 3px;
 }
 
-/* ---------- Setup checklist ---------- */
-
-.progress {
-  height: 4px;
-  margin: 16px 20px 4px;
-  border-radius: 2px;
-  background: var(--line);
-  overflow: hidden;
-}
-
-.progress span {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
+/* ---------- Setup ---------- */
 
 .steps {
-  margin: 0;
-  padding: 4px 0;
+  margin: 8px 0 0;
+  padding: 0;
   list-style: none;
 }
 
@@ -106,9 +93,6 @@
   align-items: center;
   gap: 14px;
   padding: 14px 20px;
-}
-
-.step + .step {
   border-top: 1px solid var(--line);
 }
 
@@ -116,19 +100,19 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 1px solid var(--line-strong);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-2);
 }
 
 .stepDone .stepMark {
-  border-color: var(--ink);
-  background: var(--accent);
-  color: var(--accent-ink);
+  border-color: transparent;
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .stepText {
@@ -147,8 +131,12 @@
 }
 
 .stepDone .stepText strong {
+  color: var(--text-2);
+}
+
+.stepState {
+  font-size: 13.5px;
   color: var(--text-3);
-  text-decoration: line-through;
 }
 
 @media (max-width: 560px) {
@@ -156,77 +144,59 @@
     flex-wrap: wrap;
   }
 
+  .step:not(.stepDone) .stepText {
+    flex-basis: calc(100% - 40px);
+  }
+
   .step a {
-    margin-left: 42px;
+    margin-left: 40px;
   }
 }
 
-/* ---------- Attention ---------- */
+/* ---------- Needs attention ---------- */
 
-.allClear {
-  display: flex;
-  gap: 14px;
-  padding: 20px;
-}
-
-.allClear strong {
-  font-weight: 600;
-}
-
-.allClear p {
-  margin-top: 2px;
-  font-size: 13.5px;
+.quiet {
+  margin: 20px 0 0;
+  font-size: 14px;
   color: var(--text-2);
 }
 
-.allClearIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--green-soft);
-  color: var(--green);
-}
-
 .attention {
-  margin: 0;
+  margin: 8px 0 0;
   padding: 0;
   list-style: none;
 }
 
 .attention li {
   display: flex;
-  gap: 12px;
-  padding: 14px 20px;
-}
-
-.attention li + li {
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 20px 14px 17px;
   border-top: 1px solid var(--line);
-}
-
-.attention svg {
-  flex: none;
-  margin-top: 2px;
-  color: var(--amber);
+  border-left: 3px solid var(--amber);
 }
 
 .attention div {
   display: grid;
+  gap: 2px;
   flex: 1;
   min-width: 0;
-}
-
-.attention a {
-  color: var(--text-2);
 }
 
 .attention strong {
   font-weight: 500;
 }
 
-.attention .attentionImage {
+.attention span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.attention span a {
+  color: var(--text-2);
+}
+
+.attentionImage {
   display: block;
   width: 120px;
   height: 120px;
@@ -242,7 +212,6 @@
   object-fit: cover;
 }
 
-.attention span {
-  font-size: 12.5px;
-  color: var(--text-3);
+.spaced {
+  margin-top: 20px;
 }

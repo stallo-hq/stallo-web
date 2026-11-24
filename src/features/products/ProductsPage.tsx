@@ -1,5 +1,5 @@
 import * as Menu from '@radix-ui/react-dropdown-menu'
-import { Eye, EyeOff, MoreHorizontal, Package, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Eye, EyeOff, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { PageHeader } from '../../components/PageHeader'
@@ -66,7 +66,6 @@ export function ProductsPage() {
       ) : products.length === 0 ? (
         <Card>
           <EmptyState
-            icon={Package}
             title="Add your first product"
             action={
               <Button variant="dark" icon={<Plus size={17} />} onClick={() => openEditor(null)}>

@@ -26,11 +26,8 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Logo to="/app" />
       </div>
       <div className={styles.business}>
-        <span className={styles.businessAvatar}>{seller?.businessName.slice(0, 1).toUpperCase() ?? ''}</span>
-        <div className={styles.businessText}>
-          <strong>{seller?.businessName ?? ' '}</strong>
-          <span>{seller ? formatGhanaPhone(seller.phone) : ' '}</span>
-        </div>
+        <strong>{seller?.businessName ?? ' '}</strong>
+        <span>{seller ? formatGhanaPhone(seller.phone) : ' '}</span>
       </div>
       <nav className={styles.nav} aria-label="Dashboard">
         {SECTIONS.map(({ to, label, icon: Icon, end }) => (

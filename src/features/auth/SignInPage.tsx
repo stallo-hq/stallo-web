@@ -29,7 +29,7 @@ export function SignInPage() {
 
   return (
     <AuthLayout
-      title="Welcome back"
+      title="Sign in"
       subtitle="Sign in to see today’s orders."
       footer={
         <>

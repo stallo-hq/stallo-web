@@ -37,7 +37,7 @@ export function OrderDetailPage() {
       <>
         <PageHeader title="Order" back={{ to: '/app/orders', label: 'Orders' }} />
         <Card>
-          <EmptyState icon={XCircle} title="Order not found" action={<ButtonLink to="/app/orders">Back to orders</ButtonLink>}>
+          <EmptyState title="Order not found" action={<ButtonLink to="/app/orders">Back to orders</ButtonLink>}>
             It may have been removed, or it belongs to another account.
           </EmptyState>
         </Card>
@@ -525,7 +525,7 @@ function DispatchDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Dispatch order"
-      description="The customer gets a 4-digit delivery code on WhatsApp. The rider gets the order details, the location and a link to confirm delivery."
+      description="The customer gets a 4-digit delivery code on WhatsApp. The rider gets the address and a link to confirm delivery by SMS."
       onSubmit={(e) => void submit(e)}
       footer={
         <>

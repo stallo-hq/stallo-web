@@ -25,7 +25,7 @@ export function VerifyPhonePage({ phone }: { phone: string }) {
   }
 
   return (
-    <AuthLayout title="Confirm your number" subtitle="One quick step before you start." footer={<SignOutLink />}>
+    <AuthLayout title="Confirm your number" subtitle="We’ll text a code to your number." footer={<SignOutLink />}>
       {error && <p className={styles.error}>{error}</p>}
       {v.phone ? (
         <CodeStep v={v} onVerified={(token) => void confirm(token)} />

@@ -1,4 +1,3 @@
-import { MessageCircle, ShoppingBag } from 'lucide-react'
 import { useState } from 'react'
 import { PageHeader } from '../../components/PageHeader'
 import { ButtonLink } from '../../components/ui/Button'
@@ -34,7 +33,6 @@ export function OrdersPage() {
           <PageSpinner />
         ) : orders.length === 0 ? (
           <EmptyState
-            icon={waitingForWhatsApp ? MessageCircle : ShoppingBag}
             title={config.emptyTitle}
             action={
               waitingForWhatsApp ? (

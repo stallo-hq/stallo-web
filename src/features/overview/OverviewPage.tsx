@@ -1,15 +1,4 @@
-import {
-  AlertTriangle,
-  ArrowRight,
-  Check,
-  CircleDollarSign,
-  Clock,
-  Inbox,
-  Package,
-  ShoppingBag,
-  Truck,
-  type LucideIcon,
-} from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Link } from 'react-router'
 import { PageHeader } from '../../components/PageHeader'
 import { Button, ButtonLink } from '../../components/ui/Button'
@@ -25,70 +14,112 @@ import { useOrders } from '../orders/useOrders'
 import styles from './OverviewPage.module.css'
 import { useOverview, useResolveAttention } from './useOverview'
 
-function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint: string }) {
-  return (
-    <div className={styles.stat}>
-      <span className={styles.statLabel}>
-        <Icon size={16} /> {label}
-      </span>
+function Stat({ label, value, note, to }: { label: string; value: string; note?: string; to?: string }) {
+  const body = (
+    <>
+      <span className={styles.statLabel}>{label}</span>
       <strong className={`${styles.statValue} num`}>{value}</strong>
-      <span className={styles.statHint}>{hint}</span>
-    </div>
+      {note && <span className={styles.statNote}>{note}</span>}
+    </>
+  )
+  return to ? (
+    <Link to={to} className={styles.stat}>
+      {body}
+    </Link>
+  ) : (
+    <div className={styles.stat}>{body}</div>
   )
 }
 
 type Setup = { hasProducts: boolean; whatsappConnected: boolean; payoutsConnected: boolean }
 
-function SetupChecklist({ setup }: { setup: Setup }) {
+function SetupChecklist({ setup, hasOrders }: { setup: Setup; hasOrders: boolean }) {
   const steps = [
     {
       done: setup.hasProducts,
       title: 'Add what you sell',
-      text: 'Stallo uses your product names and prices to build orders.',
+      text: 'Stallo takes names and prices from this list. It never makes up a price.',
       to: '/app/products',
       action: 'Add products',
     },
     {
       done: setup.payoutsConnected,
       title: 'Set up payouts',
-      text: 'Choose the MoMo or bank account your money goes to.',
+      text: 'The MoMo or bank account Paystack pays your money into.',
       to: '/app/settings/payouts',
       action: 'Set up payouts',
     },
     {
       done: setup.whatsappConnected,
-      title: 'Connect WhatsApp',
-      text: 'Link your business number so customers can order in chat.',
+      title: 'Link your WhatsApp',
+      text: 'Scan a QR code with the phone your business number is on.',
       to: '/app/settings/whatsapp',
-      action: 'Connect',
+      action: 'Link WhatsApp',
     },
   ]
-  const done = steps.filter((s) => s.done).length
+  const next = steps.findIndex((s) => !s.done)
   return (
-    <Card
-      title="Get set up"
-      description={`${done} of ${steps.length} done. Finish these and you’re ready for your first order.`}
-      flush
-    >
-      <div className={styles.progress} aria-hidden="true">
-        <span style={{ width: `${(done / steps.length) * 100}%` }} />
-      </div>
+    <Card title={hasOrders ? 'Finish setting up' : 'Before your first order'} flush>
       <ol className={styles.steps}>
         {steps.map((s, i) => (
           <li key={s.title} className={cx(styles.step, s.done && styles.stepDone)}>
-            <span className={styles.stepMark}>{s.done ? <Check size={15} /> : i + 1}</span>
+            <span className={styles.stepMark}>{s.done ? <Check size={14} /> : i + 1}</span>
             <div className={styles.stepText}>
               <strong>{s.title}</strong>
-              <span>{s.text}</span>
+              {!s.done && <span>{s.text}</span>}
             </div>
-            {!s.done && (
-              <ButtonLink to={s.to} size="sm" variant={i === steps.findIndex((x) => !x.done) ? 'dark' : 'secondary'}>
+            {s.done ? (
+              <span className={styles.stepState}>Done</span>
+            ) : (
+              <ButtonLink to={s.to} size="sm" variant={i === next ? 'dark' : 'secondary'}>
                 {s.action}
               </ButtonLink>
             )}
           </li>
         ))}
       </ol>
+    </Card>
+  )
+}
+
+function Attention({
+  items,
+  onResolve,
+}: {
+  items: NonNullable<ReturnType<typeof useOverview>>['attention']
+  onResolve: (id: (typeof items)[number]['_id']) => void
+}) {
+  if (items.length === 0) {
+    return <p className={styles.quiet}>Nothing needs you right now. Unclear messages, failed payments and stock problems show up here.</p>
+  }
+  return (
+    <Card title={`Needs attention (${items.length})`} className={styles.spaced} flush>
+      <ul className={styles.attention}>
+        {items.map((a) => (
+          <li key={a._id}>
+            <div>
+              <strong>{a.summary}</strong>
+              {a.imageUrl && (
+                <a href={a.imageUrl} target="_blank" rel="noopener noreferrer" className={styles.attentionImage}>
+                  <img src={a.imageUrl} alt="Picture the customer sent" loading="lazy" />
+                </a>
+              )}
+              <span>
+                {formatShortDateTime(a.createdAt)}
+                {a.orderId && (
+                  <>
+                    {' · '}
+                    <Link to={`/app/orders/${a.orderId}`}>View order</Link>
+                  </>
+                )}
+              </span>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => onResolve(a._id)}>
+              Mark done
+            </Button>
+          </li>
+        ))}
+      </ul>
     </Card>
   )
 }
@@ -107,100 +138,50 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHeader
-        title={`${greeting()}, ${seller.businessName}`}
-        description={`${formatLongDate()} · here’s your shop today.`}
-        actions={
-          <ButtonLink to="/app/orders" variant="secondary" icon={<ShoppingBag size={17} />}>
-            View orders
-          </ButtonLink>
-        }
-      />
+      <PageHeader title={seller.businessName} description={`${greeting()}. ${formatLongDate()}.`} />
 
-      {!setupDone && <SetupChecklist setup={setup} />}
+      {!setupDone && <SetupChecklist setup={setup} hasOrders={(recent?.length ?? 0) > 0} />}
+
+      <Attention items={overview.attention} onResolve={(id) => void resolve({ id })} />
 
       <div className={styles.stats}>
-        <Stat icon={ShoppingBag} label="Orders today" value={String(stats.ordersToday)} hint="Placed on WhatsApp" />
-        <Stat icon={CircleDollarSign} label="Paid today" value={formatCedis(stats.paidTodayPesewas)} hint="Before Stallo and Paystack fees" />
-        <Stat icon={Clock} label="Awaiting payment" value={String(stats.awaitingPayment)} hint="Payment link sent" />
-        <Stat icon={Truck} label="To deliver" value={String(stats.toDeliver)} hint="Paid, not sent out yet" />
+        <Stat label="Orders today" value={String(stats.ordersToday)} />
+        <Stat label="Paid today" value={formatCedis(stats.paidTodayPesewas)} note="Before fees" />
+        <Stat label="Waiting for payment" value={String(stats.awaitingPayment)} to="/app/orders" />
+        <Stat label="Paid, not sent out" value={String(stats.toDeliver)} to="/app/orders" />
       </div>
 
-      <div className={styles.columns}>
-        <Card
-          title="Recent orders"
-          actions={
-            recent && recent.length > 0 ? (
-              <Link to="/app/orders" className={styles.cardLink}>
-                View all <ArrowRight size={15} />
-              </Link>
-            ) : undefined
-          }
-          flush
-        >
-          {recent === undefined ? (
-            <PageSpinner />
-          ) : recent.length === 0 ? (
-            <EmptyState
-              icon={Inbox}
-              title="No orders yet"
-              action={
-                !setup.hasProducts ? (
-                  <ButtonLink to="/app/products" variant="dark" icon={<Package size={17} />}>
-                    Add your products
-                  </ButtonLink>
-                ) : undefined
-              }
-            >
-              When customers message your WhatsApp number, their orders show up here as they come in.
-            </EmptyState>
-          ) : (
-            <OrderTable orders={recent.slice(0, 6)} />
-          )}
-        </Card>
-
-        <Card title="Needs attention" description="Things Stallo couldn’t finish without you." flush>
-          {overview.attention.length === 0 ? (
-            <div className={styles.allClear}>
-              <span className={styles.allClearIcon}>
-                <Check size={18} />
-              </span>
-              <div>
-                <strong>All clear</strong>
-                <p>Unclear messages, failed payments and stock problems will appear here.</p>
-              </div>
-            </div>
-          ) : (
-            <ul className={styles.attention}>
-              {overview.attention.map((a) => (
-                <li key={a._id}>
-                  <AlertTriangle size={17} />
-                  <div>
-                    <strong>{a.summary}</strong>
-                    {a.imageUrl && (
-                      <a href={a.imageUrl} target="_blank" rel="noopener noreferrer" className={styles.attentionImage}>
-                        <img src={a.imageUrl} alt="Picture the customer sent" loading="lazy" />
-                      </a>
-                    )}
-                    <span>
-                      {formatShortDateTime(a.createdAt)}
-                      {a.orderId && (
-                        <>
-                          {' · '}
-                          <Link to={`/app/orders/${a.orderId}`}>View order</Link>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => void resolve({ id: a._id })} aria-label="Mark as done">
-                    Done
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      <Card
+        title="Latest orders"
+        className={styles.spaced}
+        actions={
+          recent && recent.length > 0 ? (
+            <Link to="/app/orders" className={styles.cardLink}>
+              All orders
+            </Link>
+          ) : undefined
+        }
+        flush
+      >
+        {recent === undefined ? (
+          <PageSpinner />
+        ) : recent.length === 0 ? (
+          <EmptyState
+            title="No orders yet"
+            action={
+              !setup.hasProducts ? (
+                <ButtonLink to="/app/products" variant="dark">
+                  Add your products
+                </ButtonLink>
+              ) : undefined
+            }
+          >
+            When a customer messages your WhatsApp number, the order appears here as soon as Stallo has read it.
+          </EmptyState>
+        ) : (
+          <OrderTable orders={recent.slice(0, 8)} />
+        )}
+      </Card>
     </>
   )
 }

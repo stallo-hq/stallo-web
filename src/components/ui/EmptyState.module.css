@@ -1,33 +1,21 @@
 .empty {
   display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 40px 24px;
-  text-align: center;
-}
-
-.icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 6px;
-  border-radius: 14px;
-  background: var(--gray-soft);
-  color: var(--text-2);
+  justify-items: start;
+  gap: 4px;
+  padding: 28px 20px 32px;
 }
 
 .title {
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .text {
-  max-width: 26rem;
+  max-width: 30rem;
   font-size: 14px;
   color: var(--text-2);
 }
 
 .action {
-  margin-top: 12px;
+  margin-top: 14px;
 }
