@@ -163,3 +163,27 @@ export function PinMock() {
     </div>
   )
 }
+
+/** The job SMS a rider receives (wording follows convex/model/copy.ts riderJobBase). */
+export function RiderSmsMock() {
+  return (
+    <div className={styles.card}>
+      <div className={styles.smsHead}>
+        <strong>Stallo</strong>
+        <span>Text message · 13:05</span>
+      </div>
+      <p className={styles.sms}>
+        New delivery for Ama’s Kitchen: order 1042.
+        <br />
+        Customer: Efua M.
+        <br />
+        Address: Osu, Oxford Street, opposite the Frankies
+        <br />
+        <br />
+        Open this page for details and to confirm delivery:
+        <br />
+        <span className={styles.smsLink}>…/r/k7q2</span>
+      </p>
+    </div>
+  )
+}

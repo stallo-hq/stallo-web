@@ -381,3 +381,31 @@
   font-weight: 500;
   font-size: 14px;
 }
+
+/* ---------- Rider SMS ---------- */
+
+.smsHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.smsHead span {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.sms {
+  padding: 12px 14px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--gray-soft);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.smsLink {
+  color: var(--blue);
+  text-decoration: underline;
+}
