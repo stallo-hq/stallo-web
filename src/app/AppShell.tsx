@@ -23,7 +23,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.brand}>
-        <Logo to="/app" />
+        <Logo to="/app" onClick={onNavigate} />
       </div>
       <div className={styles.business}>
         <span className={styles.businessAvatar}>{seller?.businessName.slice(0, 1).toUpperCase() ?? ''}</span>
@@ -33,6 +33,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
       <nav className={styles.nav} aria-label="Dashboard">
+        <span className={styles.navLabel}>WORKSPACE</span>
         {SECTIONS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}

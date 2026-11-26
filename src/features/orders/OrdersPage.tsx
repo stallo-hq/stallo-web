@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Segmented } from '../../components/ui/Segmented'
 import { PageSpinner } from '../../components/ui/Spinner'
+import styles from './OrdersPage.module.css'
 import { useSeller } from '../../hooks/useSeller'
 import { OrderTable } from './OrderTable'
 import { FILTERS, type OrderFilter } from './orderStatus'
@@ -20,14 +21,19 @@ export function OrdersPage() {
 
   return (
     <>
-      <PageHeader title="Orders" description="Every order from WhatsApp, from first message to delivery." />
-      <div style={{ marginBottom: 16 }}>
+      <PageHeader title="Orders" description="Track each order from the first message through delivery." />
+      <div className={styles.toolbar}>
         <Segmented
           label="Show orders"
           value={filter}
           onChange={setFilter}
           options={FILTERS.map((f) => ({ value: f.value, label: f.label }))}
         />
+        {orders !== undefined && (
+          <span className={styles.resultCount}>
+            {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+          </span>
+        )}
       </div>
       <Card flush>
         {orders === undefined ? (

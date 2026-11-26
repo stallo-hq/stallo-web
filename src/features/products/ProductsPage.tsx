@@ -90,6 +90,9 @@ export function ProductsPage() {
                 aria-label="Search products"
               />
             </label>
+            <span className={styles.resultCount}>
+              {visible.length === products.length ? `${products.length} total` : `${visible.length} of ${products.length}`}
+            </span>
           </div>
           {visible.length === 0 ? (
             <p className={styles.noMatch}>No products match “{search.trim()}”.</p>

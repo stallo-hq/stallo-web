@@ -14,9 +14,9 @@ export function LogoMark({ size = 28 }: { size?: number }) {
   )
 }
 
-export function Logo({ to = '/', tone = 'dark' }: { to?: string; tone?: 'dark' | 'light' }) {
+export function Logo({ to = '/', tone = 'dark', onClick }: { to?: string; tone?: 'dark' | 'light'; onClick?: () => void }) {
   return (
-    <Link to={to} className={styles.logo} data-tone={tone} aria-label="Stallo home">
+    <Link to={to} className={styles.logo} data-tone={tone} aria-label="Stallo home" onClick={onClick}>
       <LogoMark />
       <span className={styles.word}>stallo</span>
     </Link>

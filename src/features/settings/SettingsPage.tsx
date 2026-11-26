@@ -286,7 +286,7 @@ export function SettingsPage() {
 
         <PasswordCard />
 
-        <Card title="Sign out" description="Sign out of Stallo on this device.">
+        <Card title="Sign out" description="Sign out of Stallo on this device." className={styles.fullWidth}>
           <Button icon={<LogOut size={17} />} onClick={() => void signOut().then(() => navigate('/', { replace: true }))}>
             Sign out
           </Button>

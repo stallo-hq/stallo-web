@@ -4,7 +4,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px 24px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .text {
@@ -26,19 +26,31 @@
 }
 
 .title {
-  font-size: clamp(26px, 3vw, 32px);
-  font-weight: 500;
+  font-size: clamp(28px, 3vw, 34px);
+  font-weight: 600;
   letter-spacing: -0.035em;
 }
 
 .description {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .header {
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .actions {
+    width: 100%;
+  }
 }
