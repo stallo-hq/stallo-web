@@ -157,7 +157,6 @@ function Sidebar({
               </span>
             ) : (
               <>
-                <span className={cx(styles.channelDot, seller?.whatsappConnected && styles.channelConnected)} />
                 <span className={styles.channelText}>
                   <strong>WhatsApp</strong>
                   <span>{seller === undefined ? 'Checking…' : seller?.whatsappConnected ? 'Connected' : 'Connect'}</span>
@@ -184,7 +183,6 @@ function Sidebar({
               </span>
             ) : (
               <>
-                <span className={cx(styles.channelDot, seller?.payoutsConnected && styles.channelConnected)} />
                 <span className={styles.channelText}>
                   <strong>Payouts</strong>
                   <span>{seller === undefined ? 'Checking…' : seller?.payoutsConnected ? 'Ready' : 'Set up'}</span>
@@ -218,7 +216,6 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readSidebarPreference)
   const { pathname } = useLocation()
-  const seller = useSeller()
   const sectionLabel = routeSectionLabel(pathname)
 
   function toggleCollapsed() {
@@ -270,7 +267,6 @@ export function AppShell() {
           <Logo to="/app" tone="light" />
           <span className={styles.topbarDivider} aria-hidden="true" />
           <span className={styles.topbarSection}>
-            <span className={cx(styles.topbarDot, seller?.whatsappConnected && styles.topbarDotLive)} aria-hidden="true" />
             {sectionLabel}
           </span>
         </div>
