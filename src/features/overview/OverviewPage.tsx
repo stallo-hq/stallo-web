@@ -25,11 +25,24 @@ import { formatCedis } from '../../lib/money'
 import { OrderTable } from '../orders/OrderTable'
 import { useOrders } from '../orders/useOrders'
 import styles from './OverviewPage.module.css'
+import { TrackerPanel } from './TrackerPanel'
 import { useOverview, useResolveAttention } from './useOverview'
 
-function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  featured = false,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+  hint: string
+  featured?: boolean
+}) {
   return (
-    <div className={styles.stat}>
+    <div className={cx(styles.stat, featured && styles.statFeatured)}>
       <div className={styles.statTop}>
         <span className={styles.statIcon}>
           <Icon size={16} />
@@ -89,7 +102,7 @@ function SetupChecklist({ setup }: { setup: Setup }) {
               <span>{s.text}</span>
             </div>
             {!s.done && (
-              <ButtonLink to={s.to} size="sm" variant={i === nextStep ? 'dark' : 'secondary'}>
+              <ButtonLink to={s.to} size="sm" variant={i === nextStep ? 'primary' : 'secondary'}>
                 {s.action}
               </ButtonLink>
             )}
@@ -115,6 +128,7 @@ export function OverviewPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Seller workspace"
         title={`${greeting()}, ${seller.businessName}`}
         description={`${formatLongDate()} · here’s your shop today.`}
         actions={
@@ -122,7 +136,7 @@ export function OverviewPage() {
             <Badge tone={setupDone ? 'green' : 'amber'}>
               {setupDone ? 'Shop ready' : 'Setup in progress'}
             </Badge>
-            <ButtonLink to="/app/orders" variant="dark" icon={<ShoppingBag size={17} />}>
+            <ButtonLink to="/app/orders" variant="primary" icon={<ShoppingBag size={17} />}>
               View orders
             </ButtonLink>
           </div>
@@ -133,7 +147,7 @@ export function OverviewPage() {
 
       <div className={styles.sectionHeading}>
         <div>
-          <span className={styles.sectionEyebrow}>YOUR BUSINESS</span>
+          <span className={styles.sectionEyebrow}>DAILY SUMMARY</span>
           <h2>Today at a glance</h2>
         </div>
         <span className={styles.liveLabel}>
@@ -142,12 +156,20 @@ export function OverviewPage() {
         </span>
       </div>
 
-      <div className={styles.stats}>
+      <div className={styles.stats} role="group" aria-label="Today's business performance">
+        <Stat
+          icon={CircleDollarSign}
+          label="Paid today"
+          value={formatCedis(stats.paidTodayPesewas)}
+          hint="Before Stallo and Paystack fees"
+          featured
+        />
         <Stat icon={ShoppingBag} label="Orders today" value={String(stats.ordersToday)} hint="Placed on WhatsApp" />
-        <Stat icon={CircleDollarSign} label="Paid today" value={formatCedis(stats.paidTodayPesewas)} hint="Before Stallo and Paystack fees" />
         <Stat icon={Clock} label="Awaiting payment" value={String(stats.awaitingPayment)} hint="Payment link sent" />
         <Stat icon={Truck} label="To deliver" value={String(stats.toDeliver)} hint="Paid, not sent out yet" />
       </div>
+
+      <TrackerPanel />
 
       <div className={styles.columns}>
         <Card
@@ -170,7 +192,7 @@ export function OverviewPage() {
               title="No orders yet"
               action={
                 !setup.hasProducts ? (
-                  <ButtonLink to="/app/products" variant="dark" icon={<Package size={17} />}>
+                  <ButtonLink to="/app/products" variant="primary" icon={<Package size={17} />}>
                     Add your products
                   </ButtonLink>
                 ) : undefined

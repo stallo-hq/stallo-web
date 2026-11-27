@@ -2,7 +2,8 @@
   display: inline-flex;
   gap: 2px;
   padding: 3px;
-  background: var(--gray-soft);
+  background: var(--input-bg);
+  border: 1px solid var(--line);
   border-radius: var(--r-md);
   max-width: 100%;
   overflow-x: auto;
@@ -12,16 +13,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 13px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   background: transparent;
-  color: var(--text-2);
-  font-size: 14px;
+  color: var(--text-3);
+  font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .option:hover {
@@ -29,22 +33,25 @@
 }
 
 .selected {
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
-  box-shadow: 0 1px 2px rgba(17, 17, 16, 0.08);
+  box-shadow: var(--shadow-card);
 }
 
 .count {
   min-width: 20px;
-  padding: 0 6px;
-  border-radius: var(--r-full);
-  background: var(--line);
-  font-size: 12px;
-  line-height: 20px;
+  padding: 0 5px;
+  border-radius: var(--r-sm);
+  background: var(--gray-soft);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
   text-align: center;
 }
 
 .selected .count {
   background: var(--accent);
   color: var(--accent-ink);
+  font-weight: 600;
 }

@@ -5,7 +5,8 @@
   gap: 8px;
   border: 1px solid transparent;
   border-radius: var(--r-md);
-  font-weight: 500;
+  font-weight: 550;
+  letter-spacing: -0.005em;
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
@@ -14,15 +15,16 @@
     background-color 0.15s ease,
     border-color 0.15s ease,
     color 0.15s ease,
-    transform 0.15s ease;
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
 }
 
 .button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.99);
 }
 
 .button:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -55,6 +57,7 @@
 .primary {
   background: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--btn-primary-sheen);
 }
 
 .primary:hover:not(:disabled) {
@@ -62,22 +65,23 @@
 }
 
 .dark {
-  background: var(--ink);
-  color: var(--ink-text);
+  background: var(--btn-dark-bg);
+  color: var(--btn-dark-ink);
 }
 
 .dark:hover:not(:disabled) {
-  background: var(--ink-3);
+  background: var(--btn-dark-hover);
 }
 
 .secondary {
-  background: var(--surface);
+  background: var(--btn-secondary-bg);
   border-color: var(--line-strong);
   color: var(--text);
+  box-shadow: var(--surface-sheen);
 }
 
 .secondary:hover:not(:disabled) {
-  background: var(--surface-2);
+  background: var(--btn-secondary-hover);
   border-color: var(--text-3);
 }
 
@@ -92,7 +96,7 @@
 }
 
 .danger {
-  background: var(--surface);
+  background: var(--btn-secondary-bg);
   border-color: var(--line-strong);
   color: var(--red);
 }

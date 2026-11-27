@@ -20,7 +20,7 @@ export function ConnectionPage({ copy, connected, children }: { copy: Connection
   const Icon = copy.icon
   return (
     <>
-      <PageHeader title={copy.title} description={copy.description} back={{ to: '/app/settings', label: 'Settings' }} />
+      <PageHeader eyebrow="Connections" title={copy.title} description={copy.description} back={{ to: '/app/settings', label: 'Settings' }} />
       <div className={styles.layout}>
         <Card className={styles.status}>
           <div className={styles.statusHead}>

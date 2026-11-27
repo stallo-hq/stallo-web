@@ -13,17 +13,40 @@
   --accent: #d6f34a;
   --accent-hover: #c7e636;
   --accent-ink: #111110;
+  --accent-soft: rgba(214, 243, 74, 0.14);
+  --accent-line: rgba(214, 243, 74, 0.28);
+  --brand: #d6f34a;
+  --brand-ink: #111110;
   --violet: #9b8cff;
+  --violet-soft: rgba(155, 140, 255, 0.14);
 
   /* Dashboard surfaces */
   --canvas: #f5f5f0;
   --surface: #ffffff;
   --surface-2: #fafaf7;
+  --surface-sidebar: #ffffff;
+  --surface-highlight: #f3f8f4;
   --line: #e6e5de;
   --line-strong: #d4d3ca;
   --text: #161614;
   --text-2: #55554e;
   --text-3: #85857c;
+  --canvas-aura: transparent;
+
+  /* Controls & overlays */
+  --btn-dark-bg: var(--ink);
+  --btn-dark-ink: var(--ink-text);
+  --btn-dark-hover: var(--ink-3);
+  --btn-secondary-bg: var(--surface);
+  --btn-secondary-hover: var(--surface-2);
+  --input-bg: var(--surface);
+  --switch-thumb: var(--surface);
+  --switch-thumb-checked: var(--accent-ink);
+  --topbar-bg: var(--surface);
+  --scrim: rgba(11, 11, 10, 0.72);
+  --qr-bg: #ffffff;
+  --surface-sheen: none;
+  --btn-primary-sheen: none;
 
   /* Status */
   --green: #1f8a4c;
@@ -52,12 +75,82 @@
   /* Elevation: floating layers only */
   --shadow-pop: 0 12px 32px -8px rgba(17, 17, 16, 0.18), 0 2px 6px rgba(17, 17, 16, 0.06);
   --shadow-dialog: 0 24px 64px -12px rgba(17, 17, 16, 0.35);
+  --shadow-card: 0 1px 2px rgba(17, 17, 16, 0.025);
+  --shadow-card-hover: 0 8px 20px rgba(17, 17, 16, 0.06);
 
   /* Focus */
   --focus: 0 0 0 3px rgba(150, 190, 20, 0.45);
+  --focus-border: var(--ink);
 
   /* Layout */
-  --sidebar-w: 248px;
-  --content-max: 1120px;
+  --sidebar-w: 256px;
+  --content-max: 1320px;
   --site-max: 1200px;
+}
+
+:root:has([data-dashboard-theme='landing']) {
+  --ink: #111110;
+  --ink-2: #1c1c1a;
+  --ink-3: #2a2a27;
+  --ink-line: rgba(255, 255, 255, 0.1);
+  --ink-text: #f4f4ef;
+  --ink-muted: #a3a39b;
+  --accent: #d6f34a;
+  --accent-hover: #c7e636;
+  --accent-ink: #111110;
+  --accent-soft: rgba(214, 243, 74, 0.14);
+  --accent-line: rgba(214, 243, 74, 0.28);
+  --brand: #d6f34a;
+  --brand-ink: #111110;
+  --violet: #9b8cff;
+  --violet-soft: rgba(155, 140, 255, 0.14);
+
+  --canvas: #111110;
+  --surface: #1c1c1a;
+  --surface-2: #242421;
+  --surface-sidebar: #161614;
+  --surface-highlight: #212319;
+  --canvas-aura: rgba(214, 243, 74, 0.055);
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.18);
+  --text: #f4f4ef;
+  --text-2: #cfcfc7;
+  --text-3: #a3a39b;
+
+  --btn-dark-bg: var(--ink-text);
+  --btn-dark-ink: var(--ink);
+  --btn-dark-hover: #e3e3dc;
+  --btn-secondary-bg: var(--surface-2);
+  --btn-secondary-hover: var(--ink-3);
+  --input-bg: #141413;
+  --switch-thumb: var(--ink-text);
+  --switch-thumb-checked: var(--accent-ink);
+  --topbar-bg: rgba(17, 17, 16, 0.82);
+  --scrim: rgba(11, 11, 10, 0.76);
+
+  --green: #5ee08e;
+  --green-soft: rgba(94, 224, 142, 0.14);
+  --amber: #f3c16c;
+  --amber-soft: rgba(243, 193, 108, 0.14);
+  --red: #ff8a7a;
+  --red-soft: rgba(255, 138, 122, 0.15);
+  --blue: #8fb8ff;
+  --blue-soft: rgba(143, 184, 255, 0.14);
+  --gray: #b5b5ad;
+  --gray-soft: #2a2a27;
+
+  /* Tighter architectural radii for dashboard widgets & sections */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+
+  --shadow-pop: 0 16px 40px -10px rgba(0, 0, 0, 0.65), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-dialog: 0 28px 72px -12px rgba(0, 0, 0, 0.72);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-card-hover: 0 12px 28px rgba(0, 0, 0, 0.42);
+  --surface-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --btn-primary-sheen: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  --focus: 0 0 0 3px rgba(214, 243, 74, 0.28);
+  --focus-border: var(--accent);
 }

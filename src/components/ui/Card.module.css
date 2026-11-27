@@ -3,18 +3,18 @@
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   min-width: 0;
+  box-shadow: var(--surface-sheen), var(--shadow-card);
+  overflow: hidden;
 }
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px 0;
-}
-
-.header + div:not(.body) {
-  margin-top: 14px;
+  gap: 12px 16px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--line);
 }
 
 .heading {
@@ -22,23 +22,36 @@
 }
 
 .title {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .description {
   margin-top: 3px;
-  font-size: 13.5px;
-  color: var(--text-2);
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
   flex: none;
 }
 
 .body {
   padding: 18px 20px 20px;
+}
+
+@media (max-width: 480px) {
+  .header {
+    gap: 12px;
+    padding: 16px 16px 14px;
+  }
+
+  .body {
+    padding: 16px;
+  }
 }

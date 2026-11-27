@@ -22,7 +22,7 @@
 }
 
 .active {
-  border-color: var(--ink);
+  border-color: var(--focus-border);
   box-shadow: var(--focus);
 }
 
