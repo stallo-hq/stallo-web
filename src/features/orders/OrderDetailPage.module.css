@@ -193,28 +193,15 @@
   width: 10px;
   height: 10px;
   margin-top: 4px;
+  border: 1px solid var(--line-strong);
   border-radius: 50%;
-  background: var(--gray);
+  background: var(--surface);
 }
 
+/* Only the latest step is filled. */
 .timeline li:first-child .dot {
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
-}
-
-.dot[data-tone='green'] {
-  background: var(--green);
-}
-
-.dot[data-tone='amber'] {
-  background: var(--amber);
-}
-
-.dot[data-tone='red'] {
-  background: var(--red);
-}
-
-.dot[data-tone='blue'] {
-  background: var(--blue);
+  border-color: var(--text);
+  background: var(--text);
 }
 
 .facts {

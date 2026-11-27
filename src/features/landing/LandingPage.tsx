@@ -154,7 +154,7 @@ function Hero() {
   return (
     <section className={styles.hero}>
       <p className={styles.eyebrow} data-reveal>
-        <span className={styles.dot} /> Made for sellers in Ghana
+        Made for sellers in Ghana
       </p>
       <h1 className={styles.heroTitle} data-reveal>
         Your WhatsApp,

@@ -196,7 +196,7 @@ export function OrderDetailPage() {
             <ol className={styles.timeline}>
               {[...order.timeline].reverse().map((step, i) => (
                 <li key={i}>
-                  <span className={styles.dot} data-tone={ORDER_STATUS[step.status].tone} />
+                  <span className={styles.dot} />
                   <div>
                     <strong>{ORDER_STATUS[step.status].label}</strong>
                     {step.note && <span>{step.note}</span>}
