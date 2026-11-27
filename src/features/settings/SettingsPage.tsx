@@ -48,7 +48,7 @@ function BusinessCard({ name, phone }: { name: string; phone: string }) {
         <Field label="Business name" value={value} maxLength={80} onChange={(e) => setValue(e.target.value)} error={error} />
         <Field label="Phone number" value={formatGhanaPhone(phone)} readOnly hint="You sign in with this number. It can’t be changed here." />
         <div className={styles.formActions}>
-          <Button type="submit" variant="dark" loading={busy} disabled={value.trim() === name}>
+          <Button type="submit" variant="primary" loading={busy} disabled={value.trim() === name}>
             Save
           </Button>
         </div>
@@ -93,7 +93,7 @@ function DeliveryAreasCard({ areas }: { areas: string }) {
           hint="Towns, suburbs or landmarks, separated by commas. Leave empty to accept any address."
         />
         <div className={styles.formActions}>
-          <Button type="submit" variant="dark" loading={busy} disabled={value.trim() === areas}>
+          <Button type="submit" variant="primary" loading={busy} disabled={value.trim() === areas}>
             Save
           </Button>
         </div>
@@ -153,7 +153,7 @@ function DeliveryPaymentCard({ feePesewas, acceptsCash, balancePesewas }: { feeP
           </p>
         )}
         <div className={styles.formActions}>
-          <Button type="submit" variant="dark" loading={busy} disabled={!changed}>
+          <Button type="submit" variant="primary" loading={busy} disabled={!changed}>
             Save
           </Button>
         </div>
@@ -221,7 +221,7 @@ function PasswordCard() {
           <PasswordField label="New password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} error={error} />
         </div>
         <div className={styles.formActions}>
-          <Button type="submit" variant="dark" loading={busy} disabled={!current || !next}>
+          <Button type="submit" variant="primary" loading={busy} disabled={!current || !next}>
             Change password
           </Button>
         </div>
@@ -242,7 +242,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your business, connections and account." />
+      <PageHeader eyebrow="Business" title="Settings" description="Your business, connections and account." />
       <div className={styles.stack}>
         {/* key: start fresh whenever the saved name changes */}
         <BusinessCard key={seller.businessName} name={seller.businessName} phone={seller.phone} />
@@ -286,7 +286,7 @@ export function SettingsPage() {
 
         <PasswordCard />
 
-        <Card title="Sign out" description="Sign out of Stallo on this device.">
+        <Card title="Sign out" description="Sign out of Stallo on this device." className={styles.fullWidth}>
           <Button icon={<LogOut size={17} />} onClick={() => void signOut().then(() => navigate('/', { replace: true }))}>
             Sign out
           </Button>

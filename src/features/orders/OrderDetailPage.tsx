@@ -1,4 +1,4 @@
-import { AlertTriangle, Bike, Check, ExternalLink, MapPin, MessageCircle, Phone, RotateCcw, Send, Undo2, XCircle } from 'lucide-react'
+import { AlertTriangle, Bike, Check, Copy, ExternalLink, MapPin, MessageCircle, Phone, RotateCcw, Send, Undo2, XCircle } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useParams } from 'react-router'
 import { toast } from 'sonner'
@@ -25,6 +25,26 @@ import { useOrder, type OrderDetail } from './useOrder'
 
 type Pending = 'dispatch' | 'fail' | 'return' | 'cancel' | 'refund' | null
 
+function CopyButton({ value, label }: { value: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      className={styles.copyBtn}
+      aria-label={`Copy ${label}`}
+      onClick={() => {
+        void navigator.clipboard.writeText(value).then(() => {
+          setCopied(true)
+          toast.success(`${label} copied`)
+          window.setTimeout(() => setCopied(false), 1600)
+        })
+      }}
+    >
+      {copied ? <Check size={13} /> : <Copy size={13} />}
+    </button>
+  )
+}
+
 export function OrderDetailPage() {
   const { orderId } = useParams() as { orderId: Id<'orders'> }
   const actions = useOrder(orderId)
@@ -35,7 +55,7 @@ export function OrderDetailPage() {
   if (order === null) {
     return (
       <>
-        <PageHeader title="Order" back={{ to: '/app/orders', label: 'Orders' }} />
+        <PageHeader eyebrow="Sales" title="Order" back={{ to: '/app/orders', label: 'Orders' }} />
         <Card>
           <EmptyState icon={XCircle} title="Order not found" action={<ButtonLink to="/app/orders">Back to orders</ButtonLink>}>
             It may have been removed, or it belongs to another account.
@@ -65,6 +85,7 @@ export function OrderDetailPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Sales"
         back={{ to: '/app/orders', label: 'Orders' }}
         title={
           <span className={styles.title}>
@@ -75,7 +96,7 @@ export function OrderDetailPage() {
         actions={
           <>
             {canDispatch && (
-              <Button variant="dark" icon={<Bike size={17} />} onClick={() => setOpen('dispatch')}>
+              <Button variant="primary" icon={<Bike size={17} />} onClick={() => setOpen('dispatch')}>
                 {order.status === 'delivery_failed' ? 'Send again' : 'Dispatch'}
               </Button>
             )}
@@ -198,8 +219,9 @@ export function OrderDetailPage() {
               )}
               <div>
                 <dt>Phone</dt>
-                <dd>
+                <dd className={styles.copyable}>
                   <a href={`tel:${order.customer.phone}`}>{formatGhanaPhone(order.customer.phone)}</a>
+                  <CopyButton value={order.customer.phone} label="Phone number" />
                 </dd>
               </div>
               {order.recipient && (
@@ -223,7 +245,10 @@ export function OrderDetailPage() {
               {order.digitalAddress && (
                 <div>
                   <dt>Digital address</dt>
-                  <dd>{order.digitalAddress}</dd>
+                  <dd className={styles.copyable}>
+                    <span>{order.digitalAddress}</span>
+                    <CopyButton value={order.digitalAddress} label="Digital address" />
+                  </dd>
                 </div>
               )}
               {order.address && (
@@ -281,7 +306,10 @@ export function OrderDetailPage() {
               {order.payment && (
                 <div>
                   <dt>Reference</dt>
-                  <dd className={styles.mono}>{order.payment.reference}</dd>
+                  <dd className={styles.copyable}>
+                    <span className={styles.mono}>{order.payment.reference}</span>
+                    <CopyButton value={order.payment.reference} label="Payment reference" />
+                  </dd>
                 </div>
               )}
             </dl>
@@ -293,7 +321,7 @@ export function OrderDetailPage() {
             {cash && order.cashStatus === 'with_rider' && (
               <Button
                 size="sm"
-                variant="dark"
+                variant="primary"
                 icon={<Check size={15} />}
                 onClick={() => void run(() => actions.markCashReceived({ orderId }), 'Cash marked as received').catch(() => undefined)}
               >
@@ -460,7 +488,7 @@ function NextStep({ order, onResend }: { order: OrderDetail; onResend: () => Pro
       {order.status === 'awaiting_payment' && !order.paymentUrl && (
         <Button
           size="sm"
-          variant="dark"
+          variant="primary"
           loading={busy}
           onClick={() => {
             setBusy(true)
@@ -532,7 +560,7 @@ function DispatchDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" variant="dark" loading={busy} icon={<Check size={17} />}>
+          <Button type="submit" variant="primary" loading={busy} icon={<Check size={17} />}>
             Dispatch
           </Button>
         </>

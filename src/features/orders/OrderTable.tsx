@@ -1,4 +1,5 @@
 import type { FunctionReturnType } from 'convex/server'
+import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
 import type { api } from '../../../convex/_generated/api'
 import { Badge } from '../../components/ui/Badge'
@@ -21,6 +22,9 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
         <span role="columnheader" className={styles.right}>
           Total
         </span>
+        <span role="columnheader" className="visually-hidden">
+          Open
+        </span>
       </div>
       {orders.map((o) => {
         const status = orderStatusLabel(o.status, o.paymentMethod)
@@ -28,8 +32,9 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
           <Link key={o._id} to={`/app/orders/${o._id}`} className={styles.row} role="row" aria-label={`Order ${o.label}`}>
             <div role="cell" className={styles.customer}>
               <strong>{o.customerName ?? formatGhanaPhone(o.customerPhone)}</strong>
-              <span>
-                {o.label} · {formatShortDateTime(o.createdAt)}
+              <span className={styles.meta}>
+                <code className={styles.orderCode}>{o.label}</code>
+                <span>{formatShortDateTime(o.createdAt)}</span>
               </span>
             </div>
             <div role="cell" className={styles.items}>
@@ -40,6 +45,9 @@ export function OrderTable({ orders }: { orders: OrderRow[] }) {
             </div>
             <div role="cell" className={`${styles.right} num`}>
               {formatCedis(o.totalPesewas)}
+            </div>
+            <div role="cell" className={styles.chevron} aria-hidden="true">
+              <ChevronRight size={16} />
             </div>
           </Link>
         )

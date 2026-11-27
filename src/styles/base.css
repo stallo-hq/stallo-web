@@ -9,6 +9,33 @@ html {
   text-size-adjust: 100%;
 }
 
+:root:has([data-dashboard-theme]) {
+  color-scheme: dark;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-width: thin;
+}
+
+:root:has([data-dashboard-theme]) ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root:has([data-dashboard-theme]) ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root:has([data-dashboard-theme]) ::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.16);
+  background-clip: padding-box;
+}
+
+:root:has([data-dashboard-theme]) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+  background-clip: padding-box;
+}
+
 body {
   margin: 0;
   font-family: var(--font-body);
@@ -86,6 +113,13 @@ svg {
 [data-sonner-toaster] [data-sonner-toast] {
   font-family: var(--font-body);
   border-radius: var(--r-md);
+}
+
+:root:has([data-dashboard-theme]) [data-sonner-toaster] [data-sonner-toast] {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-pop);
 }
 
 @media (prefers-reduced-motion: reduce) {

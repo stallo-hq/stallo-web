@@ -2,7 +2,8 @@
   position: fixed;
   inset: 0;
   z-index: 50;
-  background: rgba(17, 17, 16, 0.45);
+  background: var(--scrim);
+  backdrop-filter: blur(4px);
   animation: fade 0.15s ease;
 }
 
@@ -12,19 +13,20 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(520px, calc(100vw - 32px));
-  max-height: calc(100dvh - 48px);
+  width: min(560px, calc(100vw - 40px));
+  max-height: min(88dvh, 840px);
   display: flex;
   flex-direction: column;
   background: var(--surface);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-xl);
-  box-shadow: var(--shadow-dialog);
+  box-shadow: var(--surface-sheen), var(--shadow-dialog);
   animation: pop 0.18s ease;
 }
 
 @media (min-width: 641px) {
   .content[data-size='wide'] {
-    width: min(780px, calc(100vw - 32px));
+    width: min(840px, calc(100vw - 48px));
   }
 }
 
@@ -35,19 +37,20 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
-  padding: 22px 24px 4px;
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .title {
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 600;
 }
 
 .description {
   margin-top: 4px;
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-2);
 }
 
@@ -65,26 +68,31 @@
 }
 
 .close:hover {
-  background: var(--gray-soft);
+  background: var(--surface-2);
   color: var(--text);
 }
 
 .form {
   display: contents;
+  min-width: 0;
 }
 
 .body {
   display: grid;
-  gap: 16px;
-  padding: 16px 24px 8px;
+  gap: 20px;
+  width: 100%;
+  min-width: 0;
+  padding: 22px 28px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 16px 24px 22px;
+  padding: 16px 28px 22px;
+  border-top: 1px solid var(--line);
 }
 
 @media (max-width: 640px) {
@@ -94,13 +102,22 @@
     left: 0;
     transform: none;
     width: 100%;
-    max-height: 92dvh;
+    max-height: min(92dvh, 900px);
+    border-bottom: 0;
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     animation: sheet 0.22s ease;
   }
 
+  .header {
+    padding: 18px 20px 16px;
+  }
+
+  .body {
+    padding: 18px 20px;
+  }
+
   .footer {
-    padding-bottom: max(22px, env(safe-area-inset-bottom));
+    padding: 14px 20px max(20px, env(safe-area-inset-bottom));
   }
 
   .footer > * {

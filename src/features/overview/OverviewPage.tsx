@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Check,
+  CircleCheck,
   CircleDollarSign,
   Clock,
   Inbox,
@@ -11,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Link } from 'react-router'
+import { Badge } from '../../components/ui/Badge'
 import { PageHeader } from '../../components/PageHeader'
 import { Button, ButtonLink } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -23,14 +25,30 @@ import { formatCedis } from '../../lib/money'
 import { OrderTable } from '../orders/OrderTable'
 import { useOrders } from '../orders/useOrders'
 import styles from './OverviewPage.module.css'
+import { TrackerPanel } from './TrackerPanel'
 import { useOverview, useResolveAttention } from './useOverview'
 
-function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: string; value: string; hint: string }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  featured = false,
+}: {
+  icon: LucideIcon
+  label: string
+  value: string
+  hint: string
+  featured?: boolean
+}) {
   return (
-    <div className={styles.stat}>
-      <span className={styles.statLabel}>
-        <Icon size={16} /> {label}
-      </span>
+    <div className={cx(styles.stat, featured && styles.statFeatured)}>
+      <div className={styles.statTop}>
+        <span className={styles.statIcon}>
+          <Icon size={16} />
+        </span>
+        <span className={styles.statLabel}>{label}</span>
+      </div>
       <strong className={`${styles.statValue} num`}>{value}</strong>
       <span className={styles.statHint}>{hint}</span>
     </div>
@@ -64,10 +82,12 @@ function SetupChecklist({ setup }: { setup: Setup }) {
     },
   ]
   const done = steps.filter((s) => s.done).length
+  const nextStep = steps.findIndex((step) => !step.done)
   return (
     <Card
       title="Get set up"
-      description={`${done} of ${steps.length} done. Finish these and you’re ready for your first order.`}
+      description="Complete the basics to start taking orders."
+      actions={<span className={styles.setupCount}>{done} of {steps.length} complete</span>}
       flush
     >
       <div className={styles.progress} aria-hidden="true">
@@ -75,14 +95,14 @@ function SetupChecklist({ setup }: { setup: Setup }) {
       </div>
       <ol className={styles.steps}>
         {steps.map((s, i) => (
-          <li key={s.title} className={cx(styles.step, s.done && styles.stepDone)}>
+          <li key={s.title} className={cx(styles.step, s.done && styles.stepDone, i === nextStep && styles.stepNext)}>
             <span className={styles.stepMark}>{s.done ? <Check size={15} /> : i + 1}</span>
             <div className={styles.stepText}>
               <strong>{s.title}</strong>
               <span>{s.text}</span>
             </div>
             {!s.done && (
-              <ButtonLink to={s.to} size="sm" variant={i === steps.findIndex((x) => !x.done) ? 'dark' : 'secondary'}>
+              <ButtonLink to={s.to} size="sm" variant={i === nextStep ? 'primary' : 'secondary'}>
                 {s.action}
               </ButtonLink>
             )}
@@ -108,27 +128,53 @@ export function OverviewPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Seller workspace"
         title={`${greeting()}, ${seller.businessName}`}
         description={`${formatLongDate()} · here’s your shop today.`}
         actions={
-          <ButtonLink to="/app/orders" variant="secondary" icon={<ShoppingBag size={17} />}>
-            View orders
-          </ButtonLink>
+          <div className={styles.headerActions}>
+            <Badge tone={setupDone ? 'green' : 'amber'}>
+              {setupDone ? 'Shop ready' : 'Setup in progress'}
+            </Badge>
+            <ButtonLink to="/app/orders" variant="primary" icon={<ShoppingBag size={17} />}>
+              View orders
+            </ButtonLink>
+          </div>
         }
       />
 
       {!setupDone && <SetupChecklist setup={setup} />}
 
-      <div className={styles.stats}>
+      <div className={styles.sectionHeading}>
+        <div>
+          <span className={styles.sectionEyebrow}>DAILY SUMMARY</span>
+          <h2>Today at a glance</h2>
+        </div>
+        <span className={styles.liveLabel}>
+          <span aria-hidden="true" />
+          Live data
+        </span>
+      </div>
+
+      <div className={styles.stats} role="group" aria-label="Today's business performance">
+        <Stat
+          icon={CircleDollarSign}
+          label="Paid today"
+          value={formatCedis(stats.paidTodayPesewas)}
+          hint="Before Stallo and Paystack fees"
+          featured
+        />
         <Stat icon={ShoppingBag} label="Orders today" value={String(stats.ordersToday)} hint="Placed on WhatsApp" />
-        <Stat icon={CircleDollarSign} label="Paid today" value={formatCedis(stats.paidTodayPesewas)} hint="Before Stallo and Paystack fees" />
         <Stat icon={Clock} label="Awaiting payment" value={String(stats.awaitingPayment)} hint="Payment link sent" />
         <Stat icon={Truck} label="To deliver" value={String(stats.toDeliver)} hint="Paid, not sent out yet" />
       </div>
 
+      <TrackerPanel />
+
       <div className={styles.columns}>
         <Card
           title="Recent orders"
+          description="The latest orders from your shop."
           actions={
             recent && recent.length > 0 ? (
               <Link to="/app/orders" className={styles.cardLink}>
@@ -146,7 +192,7 @@ export function OverviewPage() {
               title="No orders yet"
               action={
                 !setup.hasProducts ? (
-                  <ButtonLink to="/app/products" variant="dark" icon={<Package size={17} />}>
+                  <ButtonLink to="/app/products" variant="primary" icon={<Package size={17} />}>
                     Add your products
                   </ButtonLink>
                 ) : undefined
@@ -159,15 +205,20 @@ export function OverviewPage() {
           )}
         </Card>
 
-        <Card title="Needs attention" description="Things Stallo couldn’t finish without you." flush>
+        <Card
+          title="Needs attention"
+          description="Items that need your review."
+          actions={overview.attentionCount > 0 ? <span className={styles.attentionCount}>{overview.attentionCount}</span> : undefined}
+          flush
+        >
           {overview.attention.length === 0 ? (
             <div className={styles.allClear}>
               <span className={styles.allClearIcon}>
-                <Check size={18} />
+                <CircleCheck size={19} />
               </span>
               <div>
-                <strong>All clear</strong>
-                <p>Unclear messages, failed payments and stock problems will appear here.</p>
+                <strong>You’re all caught up</strong>
+                <p>Messages and orders needing a review will show up here.</p>
               </div>
             </div>
           ) : (

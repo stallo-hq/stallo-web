@@ -9,6 +9,11 @@
   color: var(--text);
 }
 
+.select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
 .select:disabled {
   cursor: default;
   color: var(--text-3);

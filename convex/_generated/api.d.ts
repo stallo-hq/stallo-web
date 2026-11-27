@@ -44,6 +44,7 @@ import type * as model_orders from "../model/orders.js";
 import type * as model_outbound from "../model/outbound.js";
 import type * as model_stats from "../model/stats.js";
 import type * as model_time from "../model/time.js";
+import type * as model_tracker from "../model/tracker.js";
 import type * as model_validation from "../model/validation.js";
 import type * as model_verification from "../model/verification.js";
 import type * as orders from "../orders.js";
@@ -102,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   "model/outbound": typeof model_outbound;
   "model/stats": typeof model_stats;
   "model/time": typeof model_time;
+  "model/tracker": typeof model_tracker;
   "model/validation": typeof model_validation;
   "model/verification": typeof model_verification;
   orders: typeof orders;

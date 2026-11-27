@@ -9,6 +9,37 @@
   font-weight: 400;
 }
 
+/* ---------- Scroll motion ---------- */
+
+:global(html).smoothScroll {
+  scroll-behavior: smooth;
+}
+
+.revealReady [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 20px, 0) scale(0.99);
+  transition:
+    opacity 650ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms),
+    transform 650ms cubic-bezier(0.22, 1, 0.36, 1) var(--reveal-delay, 0ms);
+}
+
+.revealReady [data-reveal].revealed {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html).smoothScroll {
+    scroll-behavior: auto;
+  }
+
+  .revealReady [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* ---------- Nav ---------- */
 
 .nav {
@@ -44,9 +75,29 @@
   transition: color 0.15s ease;
 }
 
+.navLinks a {
+  position: relative;
+  padding-block: 8px;
+}
+
 .navLinks a:hover,
 .signIn:hover {
   color: var(--ink-text);
+}
+
+.navLinks .navActive {
+  color: var(--accent);
+}
+
+.navLinks .navActive::after {
+  position: absolute;
+  right: 0;
+  bottom: -17px;
+  left: 0;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  content: '';
 }
 
 .navActions {
@@ -85,6 +136,11 @@
   font-size: 17px;
   text-decoration: none;
   border-bottom: 1px solid var(--ink-line);
+}
+
+.mobileMenu .navActive {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 @media (max-width: 860px) {
@@ -263,6 +319,7 @@
   max-width: var(--site-max);
   margin: 0 auto;
   padding: 120px 24px 0;
+  scroll-margin-top: 96px;
 }
 
 .sectionTitle {
@@ -713,4 +770,50 @@
   padding-top: 24px;
   font-size: 13.5px;
   color: var(--ink-muted);
+}
+
+.backToTop {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid rgba(17, 17, 16, 0.12);
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  animation: rise 0.18s ease-out;
+  transition:
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.backToTop:hover {
+  transform: translateY(-2px);
+  background: var(--accent-hover);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (max-width: 560px) {
+  .backToTop {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 46px;
+    padding-inline: 16px;
+  }
 }

@@ -53,7 +53,7 @@ export function ProductDialog({
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (!file.type.startsWith('image/')) return setErrors((x) => ({ ...x, photo: 'Choose a photo (JPG or PNG).' }))
+    if (!file.type.startsWith('image/')) return setErrors((x) => ({ ...x, photo: 'Choose an image file.' }))
     if (file.size > MAX_PICK_BYTES) return setErrors((x) => ({ ...x, photo: 'That photo is too large.' }))
     setErrors((x) => ({ ...x, photo: undefined }))
     setPhoto({ file, preview: URL.createObjectURL(file) })
@@ -87,13 +87,13 @@ export function ProductDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={product ? 'Edit product' : 'Add a product'}
-      description="Customers are always charged the price you set here."
+      description="Set the details customers will see when they order."
       onSubmit={submit}
       size="wide"
       footer={
         <>
           <Button onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button type="submit" variant="dark" loading={busy}>
+          <Button type="submit" variant="primary" loading={busy}>
             {product ? 'Save changes' : 'Add product'}
           </Button>
         </>
@@ -101,6 +101,7 @@ export function ProductDialog({
     >
       <div className={styles.editor}>
         <div className={styles.photoColumn}>
+          <span className={styles.photoLabel}>Product photo</span>
           <button
             type="button"
             className={styles.photoPreview}
@@ -112,28 +113,28 @@ export function ProductDialog({
             ) : (
               <span className={styles.photoEmpty}>
                 <ImagePlus size={28} />
-                <span>Add photo</span>
+                <strong>Add a photo</strong>
+                <span>Optional · up to 20 MB</span>
               </span>
             )}
           </button>
-          <div className={styles.photoText}>
-            <div className={styles.photoActions}>
-              <Button size="sm" onClick={() => fileInput.current?.click()}>
-                {previewUrl ? 'Change photo' : 'Add photo'}
+          <div className={styles.photoHelp}>
+            <span>A clear photo helps Stallo recognize this item from a customer’s message.</span>
+            {previewUrl && (
+              <Button size="sm" variant="ghost" onClick={() => setPhoto(product?.photoUrl ? 'removed' : null)}>
+                Remove photo
               </Button>
-              {previewUrl && (
-                <Button size="sm" variant="ghost" onClick={() => setPhoto(product?.photoUrl ? 'removed' : null)}>
-                  Remove
-                </Button>
-              )}
-            </div>
-            <span>Helps Stallo recognise this item when a customer sends a picture, like a TikTok screenshot.</span>
+            )}
             {errors.photo && <span className={styles.formError}>{errors.photo}</span>}
           </div>
           <input ref={fileInput} type="file" accept="image/*" hidden onChange={pickPhoto} />
         </div>
 
         <div className={styles.fieldsColumn}>
+          <div className={styles.formSection}>
+            <strong>Product details</strong>
+            <span>Use the name customers will recognize.</span>
+          </div>
           <Field
             label="Name"
             placeholder="Jollof with chicken"
@@ -141,7 +142,6 @@ export function ProductDialog({
             value={name}
             onChange={(e) => setName(e.target.value)}
             error={errors.name}
-            hint="Use the name customers will type, so Stallo can match it."
             autoFocus
           />
           <div className={styles.formRow}>
@@ -161,6 +161,7 @@ export function ProductDialog({
               value={stock}
               onChange={(e) => setStock(e.target.value)}
               error={errors.stock}
+              hint="Enter 0 when sold out."
             />
           </div>
           <Switch

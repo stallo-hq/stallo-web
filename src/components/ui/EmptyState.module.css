@@ -9,10 +9,11 @@
 .icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   margin-bottom: 6px;
-  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
   background: var(--gray-soft);
   color: var(--text-2);
 }

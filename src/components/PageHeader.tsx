@@ -5,11 +5,13 @@ import styles from './PageHeader.module.css'
 
 /** Title, one line on what the page is for, and the page's main actions. */
 export function PageHeader({
+  eyebrow,
   title,
   description,
   actions,
   back,
 }: {
+  eyebrow?: ReactNode
   title: ReactNode
   description?: ReactNode
   actions?: ReactNode
@@ -23,6 +25,7 @@ export function PageHeader({
             <ArrowLeft size={16} /> {back.label}
           </Link>
         )}
+        {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
         <h1 className={styles.title}>{title}</h1>
         {description && <p className={styles.description}>{description}</p>}
       </div>
