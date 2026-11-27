@@ -20,7 +20,7 @@ import { Logo } from '../../components/Logo'
 import { ButtonLink } from '../../components/ui/Button'
 import { formatFee } from '../../lib/money'
 import styles from './LandingPage.module.css'
-import { ChatMock, DashboardMock, PayMock, PinMock } from './visuals'
+import { ChatMock, DashboardMock, PayMock, PictureMock, PinMock } from './visuals'
 
 const YEAR = new Date().getFullYear()
 
@@ -162,8 +162,9 @@ function Hero() {
         now a full shop.
       </h1>
       <p className={styles.heroText} data-reveal>
-        Customers order in the chat they already use. Stallo reads the order, sends a MoMo or card payment link, and
-        tracks every delivery, so you can sell more without typing more.
+        Customers order in the chat they already use, with a message or a screenshot from TikTok or their status.
+        Stallo turns it into an order, sends a MoMo or card payment link, and tracks every delivery, so you can sell
+        more without typing more.
       </p>
       <div className={styles.heroActions} data-reveal>
         <ButtonLink to="/signup" variant="primary" size="lg">
@@ -207,8 +208,8 @@ function Methods() {
 const FEATURES = [
   {
     icon: MessageCircle,
-    title: 'Orders from plain chat',
-    text: 'Customers type the way they talk, in English, Twi or Pidgin. Stallo picks out the items, quantities and address.',
+    title: 'Orders from chat or a screenshot',
+    text: 'Customers type the way they talk, in English, Twi or Pidgin, or send a picture of what they saw. Stallo finds it on your menu.',
   },
   {
     icon: CreditCard,
@@ -285,6 +286,23 @@ function Stories() {
       <Story
         title={
           <>
+            They send a screenshot.
+            <br />
+            You get an order.
+          </>
+        }
+        points={[
+          'Customers send a TikTok, a status or a photo of what they want',
+          'Stallo matches it to the photos of your products',
+          'If it could be one of two items, it asks the customer which',
+          'If it can’t tell, the picture comes to you under Needs attention',
+        ]}
+        visual={<PictureMock />}
+      />
+      <Story
+        flip
+        title={
+          <>
             Orders taken,
             <br />
             even while you sleep
@@ -299,7 +317,6 @@ function Stories() {
         visual={<ChatMock />}
       />
       <Story
-        flip
         title={
           <>
             Get paid before
@@ -316,6 +333,7 @@ function Stories() {
         visual={<PayMock />}
       />
       <Story
+        flip
         title={
           <>
             Deliveries you
@@ -337,7 +355,7 @@ function Stories() {
 
 const STEPS = [
   { title: 'Create your account', text: 'Sign up with your phone number. We confirm it with a code by SMS.' },
-  { title: 'Add what you sell', text: 'Names, prices and how many you have. Change them any time.' },
+  { title: 'Add what you sell', text: 'Names, prices, stock and a photo. The photo is how Stallo recognises screenshots.' },
   { title: 'Connect WhatsApp and payouts', text: 'Link your business number and where your money should go.' },
   { title: 'Share your number', text: 'Customers message you as usual. Stallo takes it from there.' },
 ]
@@ -364,6 +382,7 @@ function HowItWorks() {
 const INCLUDED = [
   'Unlimited products and customers',
   'Order taking in English, Twi and Pidgin',
+  'Orders from screenshots and photos',
   'Paystack payment links (MoMo and card)',
   'Delivery PINs and a rider page',
   'Daily summary by SMS',
@@ -414,6 +433,10 @@ const FAQS = [
   {
     q: 'Do I need a new phone number?',
     a: 'No. You link the WhatsApp you already use by scanning a QR code, the same way you open WhatsApp Web. You can still read and reply from your phone.',
+  },
+  {
+    q: 'Can customers order with a screenshot?',
+    a: 'Yes. They can send a TikTok, a status or a photo of what they want. Stallo compares it with your product photos and adds the match to their order. If it could be more than one item it asks which one, and if it can’t tell, the picture comes to you under Needs attention.',
   },
   {
     q: 'How do customers pay?',
