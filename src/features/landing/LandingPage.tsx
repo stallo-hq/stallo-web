@@ -325,7 +325,7 @@ function Stories() {
         }
         points={[
           'Add your rider’s name and number when you send an order out',
-          'The rider gets the address and a map link on WhatsApp',
+          'The rider gets the address and a map link by SMS',
           'The customer’s PIN confirms the handover',
           'Failed delivery or return? One tap and it’s recorded',
         ]}
@@ -366,7 +366,7 @@ const INCLUDED = [
   'Order taking in English, Twi and Pidgin',
   'Paystack payment links (MoMo and card)',
   'Delivery PINs and a rider page',
-  'Daily summary on WhatsApp',
+  'Daily summary by SMS',
   'Needs attention inbox',
 ]
 
@@ -413,11 +413,11 @@ function Pricing() {
 const FAQS = [
   {
     q: 'Do I need a new phone number?',
-    a: 'No. Stallo works through the official WhatsApp Business Platform. In most cases you can keep your current business number. If not, we help you set up a dedicated one.',
+    a: 'No. You link the WhatsApp you already use by scanning a QR code, the same way you open WhatsApp Web. You can still read and reply from your phone.',
   },
   {
     q: 'How do customers pay?',
-    a: 'They get a secure Paystack link in the chat and pay with mobile money or card. The money goes to your own MoMo or bank account.',
+    a: 'They get a secure Paystack link in the chat and pay with mobile money or card, or in cash to the rider if you allow it. Paystack pays out to your own MoMo or bank account.',
   },
   {
     q: 'What if Stallo doesn’t understand a message?',
@@ -429,7 +429,7 @@ const FAQS = [
   },
   {
     q: 'What does a rider need?',
-    a: 'Just WhatsApp. They get the order details and a link to confirm the delivery with the customer’s PIN. No app to install.',
+    a: 'Any phone that gets SMS. The job comes by text with the address and a link to confirm the delivery with the customer’s PIN. No app to install.',
   },
   {
     q: 'Is there a contract?',

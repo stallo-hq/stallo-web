@@ -384,7 +384,7 @@ export function OrderDetailPage() {
           try {
             const { riderLink } = await actions.dispatch({ orderId, ...rider })
             toast.success('Dispatched. The customer has their code.', {
-              description: 'The rider gets their link on WhatsApp. You can also send it yourself.',
+              description: 'The rider gets their link by SMS. You can also send it yourself.',
               duration: 20000,
               action: { label: 'Copy rider link', onClick: () => void navigator.clipboard.writeText(riderLink) },
             })
