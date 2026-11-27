@@ -381,3 +381,58 @@
   font-weight: 500;
   font-size: 14px;
 }
+
+/* Picture order: a short-video screenshot inside an inbound bubble */
+.picture {
+  padding: 4px 4px 20px;
+}
+
+.shot {
+  position: relative;
+  width: 124px;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #2a2a27;
+  color: #fff;
+}
+
+.shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shotRail {
+  position: absolute;
+  right: 7px;
+  bottom: 44px;
+  display: grid;
+  gap: 10px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.shotHandle {
+  position: absolute;
+  left: 8px;
+  bottom: 24px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.matched {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 10.5px;
+  font-weight: 700;
+}

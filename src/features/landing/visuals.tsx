@@ -1,4 +1,4 @@
-import { Check, CheckCheck, CreditCard, Lock, MapPin, Package, Phone, ShieldCheck } from 'lucide-react'
+import { Check, CheckCheck, CreditCard, Heart, Lock, MapPin, MessageCircle, Package, Phone, ScanSearch, Share, ShieldCheck } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { LogoMark } from '../../components/Logo'
 import styles from './visuals.module.css'
@@ -159,6 +159,50 @@ export function PinMock() {
       </div>
       <div className={styles.delivered}>
         <Check size={16} /> Delivered at 13:18
+      </div>
+    </div>
+  )
+}
+
+/** A customer sends a short-video screenshot and Stallo turns it into an order. */
+export function PictureMock() {
+  return (
+    <div className={styles.phone}>
+      <div className={styles.chatHeader}>
+        <span className={styles.avatar}>AK</span>
+        <div>
+          <strong>Ama’s Kitchen</strong>
+          <span>online</span>
+        </div>
+      </div>
+      <div className={styles.chat}>
+        <div className={`${styles.inbound} ${styles.picture}`}>
+          <div className={styles.shot}>
+            <img src="/landing/jollof-screenshot.jpg" alt="Screenshot of a jollof video" loading="lazy" />
+            <span className={styles.shotRail} aria-hidden="true">
+              <Heart size={16} fill="currentColor" />
+              <MessageCircle size={16} fill="currentColor" />
+              <Share size={16} />
+            </span>
+            <span className={styles.shotHandle}>@amaskitchen</span>
+            <span className={styles.matched}>
+              <ScanSearch size={12} /> Matched
+            </span>
+          </div>
+          <span className={styles.time}>12:41</span>
+        </div>
+        <Bubble from="stallo" time="12:41">
+          That looks like our Jollof with chicken (GH₵ 65.00). I’ve added 1 to your order.
+        </Bubble>
+        <Bubble from="customer" time="12:42">
+          Make it 2. East Legon, near the A&amp;C mall
+        </Bubble>
+        <Bubble from="stallo" time="12:42">
+          <strong>Your order</strong>
+          <span className={styles.line}>2 × Jollof with chicken · GH₵ 130.00</span>
+          <span className={styles.total}>Total GH₵ 130.00 to East Legon</span>
+          Reply YES to confirm.
+        </Bubble>
       </div>
     </div>
   )
