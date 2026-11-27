@@ -5,7 +5,10 @@ import styles from './AuthLayout.module.css'
 
 const YEAR = new Date().getFullYear()
 
-/** Signed-out screens: the form on the left, the product on the right (hidden on phones). */
+/**
+ * Signed-out screens, in the dashboard's dark theme so signing in feels like the
+ * same product: the form on the left, the product on the right (hidden on phones).
+ */
 export function AuthLayout({
   title,
   subtitle,
@@ -18,15 +21,17 @@ export function AuthLayout({
   footer?: ReactNode
 }) {
   return (
-    <div className={styles.layout}>
+    <div className={styles.layout} data-dashboard-theme="landing">
       <div className={styles.formSide}>
         <div className={styles.top}>
           <Logo tone="light" />
         </div>
         <main className={styles.form}>
-          <h1 className={styles.title}>{title}</h1>
-          {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
-          <div className={styles.body}>{children}</div>
+          <div className={styles.panel}>
+            <h1 className={styles.title}>{title}</h1>
+            {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+            <div className={styles.body}>{children}</div>
+          </div>
           {footer && <div className={styles.footer}>{footer}</div>}
         </main>
         <p className={styles.legal}>© {YEAR} Stallo</p>

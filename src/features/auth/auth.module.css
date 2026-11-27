@@ -85,7 +85,7 @@
 }
 
 .progress span[data-done] {
-  background: var(--ink);
+  background: var(--accent);
 }
 
 .terms {

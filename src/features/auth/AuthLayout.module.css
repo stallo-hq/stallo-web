@@ -1,64 +1,83 @@
+/* Matches the dashboard shell: dark canvas with a faint glow, surfaces with a hairline border and sheen. */
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100dvh;
-  background: var(--surface);
+  background:
+    radial-gradient(ellipse at 28% -18%, var(--canvas-aura), transparent 48%),
+    var(--canvas);
+  color: var(--text);
 }
 
 .formSide {
   display: flex;
   flex-direction: column;
-  padding: 28px 40px;
+  padding: 24px 40px;
+}
+
+.top {
+  min-height: 34px;
 }
 
 .form {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
   margin: auto;
-  padding: 48px 0;
+  padding: 40px 0;
+}
+
+.panel {
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  box-shadow: var(--surface-sheen), var(--shadow-card);
 }
 
 .title {
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 500;
   letter-spacing: -0.035em;
 }
 
 .subtitle {
-  margin-top: 10px;
-  color: var(--text-2);
-  font-size: 15.5px;
+  margin-top: 8px;
+  color: var(--text-3);
+  font-size: 14.5px;
 }
 
 .body {
   display: grid;
   gap: 18px;
-  margin-top: 32px;
+  margin-top: 28px;
 }
 
 .footer {
-  margin-top: 28px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
-  font-size: 14.5px;
-  color: var(--text-2);
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--text-3);
+  text-align: center;
 }
 
-.footer a {
+.footer a,
+.footer button {
   color: var(--text);
   font-weight: 500;
 }
 
 .legal {
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-3);
 }
+
+/* ---------- Product side ---------- */
 
 .brandSide {
   position: sticky;
   top: 0;
   height: 100dvh;
-  padding: 16px;
+  padding: 16px 16px 16px 0;
 }
 
 .brandInner {
@@ -66,20 +85,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 40px;
+  gap: 36px;
   height: 100%;
   padding: 40px;
-  border-radius: 28px;
-  background: var(--ink);
-  color: var(--ink-text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  background: var(--surface-sidebar);
+  box-shadow: var(--surface-sheen);
   overflow: hidden;
 }
 
 .brandTitle {
-  max-width: 420px;
+  max-width: 340px;
   font-family: var(--font-display);
-  font-size: 34px;
-  line-height: 1.1;
+  font-size: 30px;
+  line-height: 1.12;
   letter-spacing: -0.04em;
   text-align: center;
 }
@@ -94,14 +114,20 @@
   }
 
   .formSide {
-    padding: 20px;
+    padding: 16px;
   }
 
   .form {
-    padding: 32px 0;
+    padding: 24px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .panel {
+    padding: 24px 20px;
   }
 
   .title {
-    font-size: 30px;
+    font-size: 25px;
   }
 }
