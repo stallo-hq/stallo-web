@@ -1,5 +1,8 @@
 .field {
   display: grid;
+  /* Keep label, box and note packed at the top, so fields side by side line up
+     even when only one of them has a hint underneath. */
+  align-content: start;
   gap: 6px;
   min-width: 0;
 }
