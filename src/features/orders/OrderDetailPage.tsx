@@ -20,6 +20,7 @@ import { formatGhanaPhone } from '../../lib/phone'
 import styles from './OrderDetailPage.module.css'
 import { Switch } from '../../components/ui/Switch'
 import { parseCedis } from '../../lib/money'
+import { PAYOUT_TIMING } from '../../lib/payouts'
 import { CASH_STATUS, DELIVERY_STATUS, ORDER_STATUS, PAYMENT_STATUS, orderStatusLabel } from './orderStatus'
 import { useOrder, type OrderDetail } from './useOrder'
 
@@ -313,6 +314,9 @@ export function OrderDetailPage() {
                 </div>
               )}
             </dl>
+            {!cash && order.paymentStatus === 'paid' && (
+              <p className={styles.muted}>You can send it out now. Paystack pays the money to your account {PAYOUT_TIMING}.</p>
+            )}
             {order.paymentUrl && (
               <ButtonLink size="sm" variant="secondary" to={order.paymentUrl} external icon={<ExternalLink size={15} />}>
                 Open payment link

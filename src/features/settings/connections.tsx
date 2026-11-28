@@ -10,6 +10,7 @@ import { PageSpinner } from '../../components/ui/Spinner'
 import { useSeller } from '../../hooks/useSeller'
 import { errorMessage } from '../../lib/errors'
 import { formatGhanaPhone } from '../../lib/phone'
+import { PAYOUT_NOTE, PAYOUT_TIMING } from '../../lib/payouts'
 import styles from './ConnectionPage.module.css'
 import { ConnectionPage, type ConnectionCopy } from './ConnectionPage'
 import { useIntegrations, usePayoutActions, useWhatsAppConnection } from './useSettings'
@@ -36,7 +37,7 @@ const PAYOUTS: ConnectionCopy = {
   description: 'Choose where the money from your orders goes.',
   benefits: [
     { title: 'Customers pay by MoMo or card', text: 'Each confirmed order gets a secure Paystack payment link.' },
-    { title: 'Money goes to your own account', text: 'Paystack settles your share to your MoMo wallet or bank account.' },
+    { title: 'Money goes to your own account', text: PAYOUT_NOTE },
     { title: 'Every payment on record', text: 'See what was paid, when, and the fee, order by order.' },
   ],
   checklist: ['Your MoMo number or bank account number', 'The name on that account', 'Your provider or bank'],
@@ -183,7 +184,7 @@ export function PayoutsPage() {
               </div>
             )}
           </dl>
-          <p>Your share of every paid order is settled here by Paystack.</p>
+          <p>Paystack pays your share of every paid order to this account, {PAYOUT_TIMING} after the customer pays.</p>
           <Button variant="secondary" onClick={() => setEditing(true)}>
             Change account
           </Button>

@@ -19,6 +19,7 @@ import { api } from '../../../convex/_generated/api'
 import { Logo } from '../../components/Logo'
 import { ButtonLink } from '../../components/ui/Button'
 import { formatFee } from '../../lib/money'
+import { PAYOUT_TIMING } from '../../lib/payouts'
 import styles from './LandingPage.module.css'
 import { ChatMock, DashboardMock, PayMock, PictureMock, PinMock } from './visuals'
 
@@ -214,7 +215,7 @@ const FEATURES = [
   {
     icon: CreditCard,
     title: 'Paid before you pack',
-    text: 'Every confirmed order gets a secure Paystack link. Money goes straight to your MoMo or bank account.',
+    text: `Every confirmed order gets a secure Paystack link. Paystack pays your share to your MoMo or bank account, ${PAYOUT_TIMING}.`,
   },
   {
     icon: Truck,
@@ -441,6 +442,10 @@ const FAQS = [
   {
     q: 'How do customers pay?',
     a: 'They get a secure Paystack link in the chat and pay with mobile money or card, or in cash to the rider if you allow it. Paystack pays out to your own MoMo or bank account.',
+  },
+  {
+    q: 'When do I get my money?',
+    a: `The order shows as paid the moment the customer pays, so you can send it out straight away. The money itself comes from Paystack to your MoMo or bank account, ${PAYOUT_TIMING}. Payments made on a weekend or public holiday arrive on the next working day.`,
   },
   {
     q: 'What if Stallo doesn’t understand a message?',
