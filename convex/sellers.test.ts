@@ -36,6 +36,47 @@ describe('phone verification', () => {
     expect((await ama.query(api.account.me, {}))?.phoneVerified).toBe(true)
   })
 
+  it('stops guessing a code after 3 wrong tries, until a new code is sent', async () => {
+    const t = setup()
+    const phone = '+233241234567'
+    await t.action(api.phoneVerification.sendCode, { phone })
+    for (let i = 0; i < 3; i++) {
+      await expect(t.action(api.phoneVerification.verifyCode, { phone, code: '000000' })).rejects.toThrow(/isn’t right/)
+    }
+    await expect(t.action(api.phoneVerification.verifyCode, { phone, code: '123456' })).rejects.toThrow(/Too many wrong tries/)
+
+    await t.action(api.phoneVerification.sendCode, { phone })
+    expect((await t.action(api.phoneVerification.verifyCode, { phone, code: '123456' })).token).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  it('limits wrong guesses per number per hour, across codes', async () => {
+    const t = setup()
+    const phone = '+233241234567'
+    const wrong = () => t.action(api.phoneVerification.verifyCode, { phone, code: '000000' })
+    for (let code = 0; code < 3; code++) {
+      await t.action(api.phoneVerification.sendCode, { phone })
+      for (let i = 0; i < 3; i++) await expect(wrong()).rejects.toThrow(/isn’t right/)
+    }
+    await t.action(api.phoneVerification.sendCode, { phone })
+    await expect(wrong()).rejects.toThrow(/isn’t right/) // the 10th wrong guess this hour
+    await t.action(api.phoneVerification.sendCode, { phone })
+    await expect(t.action(api.phoneVerification.verifyCode, { phone, code: '123456' })).rejects.toThrow(/Too many wrong codes/)
+  })
+
+  it('refuses a guess when no code was sent to the number', async () => {
+    const t = setup()
+    await expect(t.action(api.phoneVerification.verifyCode, { phone: '+233241234567', code: '123456' })).rejects.toThrow(/expired/)
+  })
+
+  it('does not count other numbers’ guesses', async () => {
+    const t = setup()
+    await t.action(api.phoneVerification.sendCode, { phone: '+233241234567' })
+    for (let i = 0; i < 3; i++) {
+      await expect(t.action(api.phoneVerification.verifyCode, { phone: '+233241234567', code: '000000' })).rejects.toThrow(/isn’t right/)
+    }
+    expect(await phoneToken(t, '+233551234567')).toMatch(/^[0-9a-f]{64}$/)
+  })
+
   it('limits codes per number', async () => {
     const t = setup()
     for (let i = 0; i < 5; i++) await t.action(api.phoneVerification.sendCode, { phone: '+233241234567' })

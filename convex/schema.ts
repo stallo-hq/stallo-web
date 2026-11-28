@@ -28,7 +28,16 @@ export default defineSchema({
   // one-time token (stored hashed) that proves phone ownership for a short time.
   phoneVerifications: defineTable({
     phone: v.string(),
-    status: v.union(v.literal('sending'), v.literal('sent'), v.literal('failed'), v.literal('verified'), v.literal('used')),
+    // 'checking' and 'wrong' are code guesses: counted against the per-code and per-hour limits.
+    status: v.union(
+      v.literal('sending'),
+      v.literal('sent'),
+      v.literal('failed'),
+      v.literal('checking'),
+      v.literal('wrong'),
+      v.literal('verified'),
+      v.literal('used'),
+    ),
     otpId: v.optional(v.string()),
     tokenHash: v.optional(v.string()),
     verifiedAt: v.optional(v.number()),
