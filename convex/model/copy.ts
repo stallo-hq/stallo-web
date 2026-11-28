@@ -230,7 +230,7 @@ export const copy = {
   // To the seller, by SMS (Stallo has no number of its own on WhatsApp). Keep these short: 1 SMS part where possible.
 
   sellerOrderPaid(order: Order, items: string, amount: string) {
-    return `Stallo: order ${orderLabel(order)} is paid (${amount}). ${items}. Open your dashboard to send it out.`
+    return `Stallo: order ${orderLabel(order)} is paid (${amount}). ${items}. Open your dashboard to send it out. Paystack pays you, usually next business day.`
   },
 
   sellerAttention(summary: string) {
