@@ -9,6 +9,12 @@ export const TOKEN_TTL_MS = 30 * 60 * 1000
 /** Codes per phone number per hour, and across the whole service per hour. */
 export const SENDS_PER_PHONE_PER_HOUR = 5
 export const DEFAULT_SENDS_PER_HOUR = 300
+/**
+ * Wrong code guesses allowed per code, and per phone number per hour. SasuSync also kills a
+ * code after 3 wrong tries; Stallo counts them itself so the limit holds whatever the provider does.
+ */
+export const WRONG_GUESSES_PER_CODE = 3
+export const WRONG_GUESSES_PER_PHONE_PER_HOUR = 10
 
 /**
  * Spends a verified-phone token: it must exist, be for this phone, be fresh
